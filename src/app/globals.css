@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+/* ─── Design Tokens ─── */
+/* ค่าเหล่านี้ hardcode ใน component จนกว่า docs/DESIGN.md จะล็อก — สลับธีมได้โดยไม่แก้ component */
+@theme {
+  --color-bg: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-surface-2: #e8e8e8;
+  --color-border: #d4d4d4;
+  --color-text: #1a1a1a;
+  --color-text-muted: #6b6b6b;
+  --color-income: #16a34a;
+  --color-expense: #dc2626;
+  --color-balance: #2563eb;
+  --color-warn: #f59e0b;
+  --color-focus: #3b82f6;
+
+  --radius-input: 8px;
+  --radius-btn: 12px;
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --radius-pill: 9999px;
+
+  --font-thai: "IBM Plex Sans Thai", system-ui, "Sarabun", sans-serif;
+}
+
+/* ─── Base ─── */
+body {
+  height: 100dvh;
+  overscroll-behavior: none;
+  margin: 0;
+}
+
+/* tabular-nums สำหรับตัวเลขการเงิน */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
