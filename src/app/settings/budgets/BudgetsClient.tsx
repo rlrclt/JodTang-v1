@@ -9,9 +9,10 @@
  * - งบ 0 กับ "ยังไม่ตั้งงบ" เป็นของละต่างกัน (budgetSatang = null ถ้าไม่ตั้ง) — แสดงต่างกันตลอด
  */
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition, useState } from "react";
 import { upsertBudget, deleteBudget } from "@/app/actions/budgets";
+import { formatSatang } from "@/lib/format-satang";
 import {
   bahtTextToSatang,
   satangToBahtText,
@@ -40,11 +41,10 @@ type Props = {
   month: number;
   rows: BudgetRowClient[];
   categories: CategoryLite[];
-  formatBaht: (satang: bigint | number) => string;
 };
 
 export default function BudgetsClient(props: Props) {
-  const { year, month, rows, formatBaht } = props;
+  const { year, month, rows } = props;
 
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -137,9 +137,8 @@ export default function BudgetsClient(props: Props) {
       <ul className="divide-y divide-border">
         {optimisticRows.map((row) => (
           <BudgetRowItem
-            key={row.category_id}
+            key={`${year}-${month}-${row.category_id}`}
             row={row}
-            formatBaht={formatBaht}
             onSave={saveBudget}
             onClear={clearBudget}
           />
@@ -199,12 +198,10 @@ function MonthNav({
 /* ─── แถวงบของหมวดหนึ่ง ─── */
 function BudgetRowItem({
   row,
-  formatBaht,
   onSave,
   onClear,
 }: {
   row: BudgetRowClient;
-  formatBaht: (satang: bigint | number) => string;
   onSave: (category_id: string, rawText: string) => void;
   onClear: (category_id: string, budgetId: string | null) => void;
 }) {
@@ -229,16 +226,16 @@ function BudgetRowItem({
 
       {state === "none" ? (
         <p className="text-text-muted text-sm">
-          ยังไม่ตั้งงบ · ใช้ไป {formatBaht(row.spentSatang)}
+          ยังไม่ตั้งงบ · ใช้ไป {formatSatang(row.spentSatang)}
         </p>
       ) : state === "zero" ? (
         <p className="text-text-muted text-sm">
-          งบ 0 บาท · ใช้ไป {formatBaht(row.spentSatang)}
+          งบ 0 บาท · ใช้ไป {formatSatang(row.spentSatang)}
         </p>
       ) : (
         <p className="text-sm">
-          งบ {formatBaht(row.budgetSatang!)} · ใช้ไป{" "}
-          {formatBaht(row.spentSatang)}
+          งบ {formatSatang(row.budgetSatang!)} · ใช้ไป{" "}
+          {formatSatang(row.spentSatang)}
           {pct !== null && (
             <span className="tabular-nums">
               {" "}({pct}%)

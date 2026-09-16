@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { listBudgets } from "@/app/actions/budgets";
 import { listCategories } from "@/app/actions/categories";
 import { getCurrentYearMonth, getMonthRange } from "@/lib/date";
-import { formatSatang } from "@/lib/format-satang";
 import BudgetsClient from "./BudgetsClient";
 
 export const dynamic = "force-dynamic";
@@ -134,7 +133,6 @@ export default async function BudgetsPage({
         name: c.name,
         icon: c.icon,
       }))}
-      formatBaht={formatSatang}
     />
   );
 }
