@@ -45,3 +45,69 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * View Transition styles — cross-fade นุ่ม ๆ ทุกหน้า
+ * ใช้ ::view-transition-old(root) / ::view-transition-new(root) สำหรับ cross-fade
+ * ใช้ view-transition-name: balance-card สำหรับ morph การ์ดยอดเงิน
+ */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-timing-function: ease-in-out;
+  animation-duration: 200ms;
+}
+
+::view-transition-old(root) {
+  animation-name: fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: fade-in;
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Morph: balance-card — smooth crossfade สำหรับ element ที่มี view-transition-name เดียวกัน */
+::view-transition-old(balance-card),
+::view-transition-new(balance-card) {
+  animation-duration: 180ms;
+  animation-timing-function: ease-in-out;
+}
+
+/*
+ * prefers-reduced-motion: reduce → ปิด animation ทั้งหมด รวม view transition
+ * กติกา: 0ms ทุกอย่าง = เปลี่ยนหน้าทันที ไม่มี transition
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  ::view-transition-old(balance-card),
+  ::view-transition-new(balance-card) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}
