@@ -1,4 +1,4 @@
-import { describe, it, after } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 describe("isPublicPath", () => {
@@ -17,6 +17,16 @@ describe("isPublicPath", () => {
     assert.equal(isPublicPath("/auth/signin"), true);
   });
 
+  it("returns true for /offline (PWA offline page)", async () => {
+    const { isPublicPath } = await import("./middleware-guards.ts");
+    assert.equal(isPublicPath("/offline"), true);
+  });
+
+  it("returns true for /manifest.webmanifest (PWA manifest)", async () => {
+    const { isPublicPath } = await import("./middleware-guards.ts");
+    assert.equal(isPublicPath("/manifest.webmanifest"), true);
+  });
+
   it("returns false for /", async () => {
     const { isPublicPath } = await import("./middleware-guards.ts");
     assert.equal(isPublicPath("/"), false);
@@ -27,11 +37,17 @@ describe("isPublicPath", () => {
     assert.equal(isPublicPath("/dashboard"), false);
   });
 
+  it("returns false for /settings", async () => {
+    const { isPublicPath } = await import("./middleware-guards.ts");
+    assert.equal(isPublicPath("/settings"), false);
+  });
+
   it("does not match sub-paths of non-public routes", async () => {
     const { isPublicPath } = await import("./middleware-guards.ts");
     assert.equal(isPublicPath("/login/callback"), true); // /login/* is public
     assert.equal(isPublicPath("/auth/signin/google"), true); // /auth/signin/* is public
     assert.equal(isPublicPath("/api/data"), false);
+    assert.equal(isPublicPath("/offline/settings"), true); // /offline/* is public
   });
 });
 

@@ -1,6 +1,13 @@
 // middleware logic ที่แยกออกจาก Next.js runtime — ทดสอบได้ด้วย node --test
 
-export const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/signin"];
+// PWA paths ต้องเข้าถึงได้ offline — ไม่ต้องมี session
+export const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/auth/signin",
+  "/offline",
+  "/manifest.webmanifest",
+];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
