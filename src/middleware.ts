@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
-import { isPublicPath, isSupabaseConfigured } from "@/lib/middleware-guards";
+import {
+  isPublicPath,
+  isSupabaseConfigured,
+  validateSessionResult,
+} from "@/lib/middleware-guards";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,13 +22,13 @@ export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
   const supabase = createMiddlewareClient(request, supabaseResponse);
 
-  // refresh session — สำคัญมาก: ถ้า session หมดอายุ จะได้ token ใหม่
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  // D1 fix: ใช้ getUser() แทน getSession()
+  // getUser() validate JWT server-side (กัน session หมดอายุ / JWT ถูกดัดแปลง)
+  // getSession() อ่านจาก cookie เฉยๆ — ไม่ validate อะไรเลย
+  const { data, error } = await supabase.auth.getUser();
 
-  // ไม่มี session → redirect ไป /login
-  if (!session) {
+  // ไม่มี user หรือมี error → redirect ไป /login
+  if (!validateSessionResult({ data, error })) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

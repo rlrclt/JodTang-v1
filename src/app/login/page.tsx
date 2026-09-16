@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { validateSessionResult } from "@/lib/middleware-guards";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +14,12 @@ const PROVIDERS = [
 // ถ้ามี session อยู่แล้ว redirect ไป /
 export default async function LoginPage() {
   const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
 
-  if (session) {
+  // D1 fix: ใช้ getUser() แทน getSession()
+  // getUser() validate JWT server-side — ป้องกัน JWT หมดอายุ/ถูกดัดแปลง
+  const { data, error } = await supabase.auth.getUser();
+
+  if (validateSessionResult({ data, error })) {
     const { redirect: redir } = await import("next/navigation");
     redir("/");
   }

@@ -20,6 +20,22 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+// D1 — providers ที่อนุญาตให้ใช้ OAuth sign-in (sync กับ PROVIDERS ใน login/page.tsx)
+export const ALLOWED_OAUTH_PROVIDERS = ["google"] as const;
+
+export function isValidOAuthProvider(provider: string): boolean {
+  return (ALLOWED_OAUTH_PROVIDERS as readonly string[]).includes(provider);
+}
+
+// D1 — ตรวจสอบ getUser() result: ต้องมี user และไม่มี error
+// ใช้ getUser() แทน getSession() เพื่อ validate JWT server-side
+export function validateSessionResult(result: {
+  data: { user: unknown };
+  error: unknown;
+}): boolean {
+  return !result.error && Boolean(result.data?.user);
+}
+
 // middleware config สำหรับ Next.js — export แยกเพื่อทดสอบได้
 export const middlewareConfig = {
   matcher: [
