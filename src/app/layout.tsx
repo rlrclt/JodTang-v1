@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import AppShell from "@/components/AppShell";
+import { TransactionsProvider } from "@/components/TransactionsProvider";
 import "./globals.css";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({
@@ -31,7 +32,9 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className={`${ibmPlexSansThai.className} tabular-nums`}>
-        <AppShell>{children}</AppShell>
+        <TransactionsProvider>
+          <AppShell>{children}</AppShell>
+        </TransactionsProvider>
       </body>
     </html>
   );

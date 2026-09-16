@@ -1,16 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import TabBar from "./TabBar";
 import FAB from "./FAB";
+import BottomSheet from "./BottomSheet";
 
 // เส้นทางที่ไม่ต้องมี shell (แถบแท็บ + FAB)
 const EXCLUDED_ROUTES = ["/login", "/offline"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const showShell = !EXCLUDED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
+    (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
   return (
@@ -25,8 +28,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       {showShell && (
         <>
-          <FAB />
+          <FAB onClick={() => setIsSheetOpen(true)} />
           <TabBar />
+          {isSheetOpen && (
+            <BottomSheet onClose={() => setIsSheetOpen(false)} />
+          )}
         </>
       )}
     </div>

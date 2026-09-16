@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+type Props = {
+  onClick: () => void;
+};
 
-export default function FAB() {
-  const [isOpen, setIsOpen] = useState(false);
-
+export default function FAB({ onClick }: Props) {
   return (
     <button
       type="button"
       aria-label="เพิ่มรายการใหม่"
-      onClick={() => setIsOpen(!isOpen)}
+      onClick={onClick}
       className="fixed z-50 flex items-center justify-center rounded-full bg-balance text-white shadow-lg transition-transform duration-120 active:scale-95"
       style={{
         width: "56px",
