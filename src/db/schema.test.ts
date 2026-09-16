@@ -19,10 +19,12 @@ async function loadMigrations(db: TestDb) {
   const m1 = await loadSql("supabase/migrations/00001_create_tables.sql");
   const m2 = await loadSql("supabase/migrations/00002_rls.sql");
   const m3 = await loadSql("supabase/migrations/00003_add_profiles_email.sql");
+  const m4 = await loadSql("supabase/migrations/00004_harden_profile_trigger.sql");
   await db.exec(shim);
   await db.exec(m1);
   await db.exec(m2);
   await db.exec(m3);
+  await db.exec(m4);
 }
 
 const USER_A = "11111111-1111-1111-1111-111111111111";
