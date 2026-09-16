@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# env — ห้าม commit ของจริง
+.env
+.env.local
+.env.*.local
+.env.vercel-prod
+
+# supabase
+.supabase/
+supabase/.branches
+supabase/.temp
+
+# vercel
+.vercel
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# logs + os
+*.log
+npm-debug.log*
+.DS_Store
