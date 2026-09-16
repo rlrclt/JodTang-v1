@@ -133,11 +133,11 @@ TypeScript: ล่าสุดบน npm คือ **7.0.2** (คนละสา
 - การยืนยันตัวตนใช้ OAuth ของเจ้าของบัญชี (human step — ไม่มี PAT เก็บในไฟล์) จึงไม่ขัดกฎ "ห้ามอ่าน `.env.local`"
 - งานที่จะพึ่ง MCP: apply migration · ตรวจ RLS บน Postgres จริง (แข็งแรงกว่า PGlite) · `get_advisors` ตรวจ RLS ที่ขาด · generate TypeScript types
 - ถ้า MCP ยังไม่พร้อม: ทางสำรองคือ `npx supabase db push` (patch `package.json` ไม่ใช่ `.env`)
-- ก่อนใช้จริงต้องเช็ค: worker profile (`dev`/`qa`/`review`) มองเห็น MCP tools หรือไม่ — ถ้าไม่ ต้องตั้งให้ถูกก่อน ไม่ใช่อ้างว่าตรวจแล้ว
+- ก่อนใช้จริงต้องเช็ค: worker profile (`dev`/`qa`/`review`) มองเห็น MCP tools หรือไม่ — ✅ **ยืนยันแล้ว**: dev profile เห็น MCP tools ครบ + `apply_migration` / `execute_sql` / `get_advisors` / `generate_typescript_types` ทำงานจริงบน proj `rivufpvxrfjfhsyamiet`
 
 ## 11. ความเสี่ยง
 
-- RLS เขียนผิด = ข้อมูลการเงินคนอื่นรั่ว → ต้องมีเทสต์เชิงลบ (ผู้ใช้ A อ่านข้อมูล B ไม่ได้) ทุกครั้งที่แตะ policy
+- RLS เขียนผิด = ข้อมูลการเงินคนอื่นรั่ว → ✅ **พิสูจน์แล้วบน Postgres จริง (Supabase dev)** 2026-09-16: สร้าง test users 2 คน → INSERT/SELECT/UPDATE/DELETE ข้ามบัญชีถูกบล็อกทุกตาราง (ไม่ใช่แค่ PGlite + shim อีกต่อไป)
 - free tier pause + ไม่มี backup → ยอมรับความเสี่ยงนี้ไปก่อน หรือขึ้น Pro
 - LINE email ต้องยื่นขออนุมัติแยก · ถ้าไม่อนุมัติ ผู้ใช้ LINE จะไม่มีอีเมล (แอปต้องรับได้)
 - dev DB พึ่งคลาวด์ (ไม่มี Docker) → เน็ตล่ม/โปรเจกต์หยุด = dev หยุด · PGlite ช่วยได้เฉพาะเทสต์
