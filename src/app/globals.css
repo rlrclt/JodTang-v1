@@ -15,6 +15,16 @@
   --color-warn: #f59e0b;
   --color-focus: #3b82f6;
 
+  /* สีจุดหมวดหมู่ (8 สีกราฟ) — ชื่อชัดเจน อ้างจาก component ด้วย bg-cat-* / text-cat-* ได้ */
+  --color-cat-tomato: #ef4444;
+  --color-cat-amber: #f59e0b;
+  --color-cat-lime: #84cc16;
+  --color-cat-teal: #14b8a6;
+  --color-cat-sky: #38bdf8;
+  --color-cat-indigo: #6366f1;
+  --color-cat-fuchsia: #e879f9;
+  --color-cat-graphite: #6b7280;
+
   --radius-input: 8px;
   --radius-btn: 12px;
   --radius-card: 16px;
