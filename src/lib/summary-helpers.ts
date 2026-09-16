@@ -129,7 +129,7 @@ export function computeSixMonthTrend(
   // เติมข้อมูลจาก transactions
   for (const t of transactions) {
     const d = new Date(t.occurred_at);
-    // แปลงเป็นเดือนใน Asia/Bangkok
+    if (Number.isNaN(d.getTime())) continue;
     const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: "Asia/Bangkok",
       year: "numeric",

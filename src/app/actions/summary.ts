@@ -70,7 +70,7 @@ export async function getSummaryData(
     let q = supabase
       .from("transactions")
       .select(
-        "id, kind, amount, category_id, categories(id, name, icon)"
+        "id, kind, amount, category_id, occurred_at, categories(id, name, icon)"
       )
       .is("deleted_at", null)
       .gte("occurred_at", start)
@@ -91,10 +91,11 @@ export async function getSummaryData(
     const rows = data ?? [];
     const hasMore = rows.length > BATCH;
     const page = hasMore ? rows.slice(0, BATCH) : rows;
-    transactions.push(...(page as any));
+    // Supabase's nested relation inference is wider than TransactionRecord at this boundary.
+    transactions.push(...(page as unknown as TransactionRecord[]));
 
     if (!hasMore || page.length === 0) break;
-    const last = page[page.length - 1] as any;
+    const last = page[page.length - 1] as unknown as TransactionRecord;
     cursor = { occurred_at: last.occurred_at, id: last.id };
   }
 

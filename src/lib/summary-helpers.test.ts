@@ -118,6 +118,14 @@ describe("computeSixMonthTrend", () => {
     assert.equal(result[5].income, 30000);
     assert.equal(result[5].expense, 15000);
   });
+  it("ignores an invalid transaction date without crashing", () => {
+    const result = computeSixMonthTrend(
+      [{ ...tx("expense", 1000, "c1", "อาหาร"), occurred_at: "" }],
+      2026,
+      9,
+    );
+    assert.equal(result.every((month) => month.expense === 0), true);
+  });
 
   it("fills zero for months with no transactions", () => {
     const result = computeSixMonthTrend([], 2026, 9);
