@@ -3,14 +3,16 @@ import { formatSatang } from "@/lib/format-satang";
 type Props = {
   income: number;
   expense: number;
+  /** ยอดคงเหลือที่คำนวณมาแล้ว (ถ้าไม่ส่งมา จะคำนวณเป็น income - expense) */
+  balance?: number;
 };
 
 /**
  * การ์ดยอดเงิน — มี view-transition-name: balance-card สำหรับ morph
  * ยอด = income - expense
  */
-export default function BalanceCard({ income, expense }: Props) {
-  const balance = income - expense;
+export default function BalanceCard({ income, expense, balance: balanceProp }: Props) {
+  const balance = balanceProp ?? income - expense;
 
   return (
     <div
