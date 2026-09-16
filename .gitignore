@@ -24,6 +24,9 @@ supabase/.temp
 # vercel
 .vercel
 
+# kanban worker worktrees — อยู่ที่นี่แต่ไม่ควรถูก track ใน main
+.worktrees/
+
 # test / coverage
 coverage/
 .nyc_output/
