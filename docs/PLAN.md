@@ -70,6 +70,8 @@ TypeScript: ล่าสุดบน npm คือ **7.0.2** (คนละสา
 
 ## 5. Motion + การเปลี่ยนหน้า (ตัดสินแล้ว)
 
+**สไตล์ที่เลือก (ยืนยัน 2026-09-16): cross-fade นุ่ม ๆ ทุกหน้า + morph "การ์ดยอดเงิน" ระหว่างหน้าแรก ↔ รายการ** — ใช้ `view-transition-name: balance-card` (ตั้งได้ทีละ 1 element ต่อ snapshot เท่านั้น ซ้ำ = เบราว์เซอร์ข้าม transition ทั้งหน้า) · ขอบเขต realtime v1 = optimistic + refetch ตอน focus ไม่มี WebSocket (ดู §6)
+
 **ไม่ทำเป็น SPA** — App Router ทำ client-side navigation อยู่แล้ว (กดลิงก์ไม่ reload หน้า + prefetch ล่วงหน้า) การรื้อไปเป็น SPA จริง (client ทั้งแอป) จะเสียข้อดี server component, JS ในเครื่องบวมขึ้น และทำให้ข้อมูลการเงินต้องโหลดฝั่ง client — ไม่คุ้มกับสิ่งที่ได้มา สิ่งที่ต้องทำเพื่อ "ไม่รู้สึกว่าเปลี่ยนหน้า" มี 3 ชั้น:
 
 1. **View Transitions API** (browser-native, ไม่มี lib ใน bundle)
