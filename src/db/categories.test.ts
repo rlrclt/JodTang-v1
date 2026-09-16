@@ -13,13 +13,20 @@ async function loadMigrations(db: any) {
   const shim = await loadSql("supabase/tests/auth_shim.sql");
   const m1 = await loadSql("supabase/migrations/00001_create_tables.sql");
   const m2 = await loadSql("supabase/migrations/00002_rls.sql");
+  const m3 = await loadSql("supabase/migrations/00003_add_profiles_email.sql");
+  const m4 = await loadSql("supabase/migrations/00004_harden_profile_trigger.sql");
+  const m5 = await loadSql("supabase/migrations/00005_seed_default_categories.sql");
   await db.exec(shim);
   await db.exec(m1);
   await db.exec(m2);
+  await db.exec(m3);
+  await db.exec(m4);
+  await db.exec(m5);
 }
 
 const USER_A = "11111111-1111-1111-1111-111111111111";
 const USER_B = "22222222-2222-2222-2222-222222222222";
+const USER_C = "33333333-3333-3333-3333-333333333333";
 
 /** ตั้ง role เป็น authenticated + จำลอง JWT claims */
 async function setAuth(db: any, userId: string) {
@@ -93,6 +100,26 @@ describe("categories: add / rename / archive / restore + _TEXTR_S validation", (
   after(async () => {
     await db.close();
   });
+  describe("default categories", () => {
+    it("seeds income and expense categories for a new user", async () => {
+      await db.exec("RESET ROLE");
+      await db.exec(`INSERT INTO auth.users (id, raw_user_meta_data) VALUES ('${USER_C}', '{"full_name": "Defaults Test"}'::jsonb)`);
+      const result = await db.query(
+        "SELECT kind, count(*)::int AS count FROM categories WHERE user_id = $1 GROUP BY kind ORDER BY kind",
+        [USER_C],
+      );
+      assert.deepEqual(result.rows, [
+        { kind: "expense", count: 10 },
+        { kind: "income", count: 5 },
+      ]);
+      const icons = await db.query(
+        "SELECT icon FROM categories WHERE user_id = $1 AND name = $2 AND kind = $3",
+        [USER_C, "อาหาร", "expense"],
+      );
+      assert.equal(icons.rows[0].icon, "utensils#tomato");
+      await db.exec(`DELETE FROM auth.users WHERE id = '${USER_C}'`);
+    });
+  });
 
   describe("validation", () => {
     it("rejects empty name (CHECK NOT NULL + trim rule)", async () => {
@@ -138,15 +165,14 @@ describe("categories: add / rename / archive / restore + _TEXTR_S validation", (
       await setAuth(db, USER_A);
       const id1 = await insertCategory(db, {
         user: USER_A,
-        name: "อื่น ๆ",
+        name: "ชื่อซ้ำคนละชนิด",
         kind: "expense",
       });
       const id2 = await insertCategory(db, {
         user: USER_A,
-        name: "อื่น ๆ",
+        name: "ชื่อซ้ำคนละชนิด",
         kind: "income",
       });
-      assert.ok(id1 && id2);
       await db.exec(
         `DELETE FROM categories WHERE id IN ('${id1}','${id2}')`
       );
