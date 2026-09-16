@@ -21,7 +21,7 @@
 5. กด Create → คัดลอก **Client ID** และ **Client Secret** (เก็บไว้ที่ปลอดภัย — ไม่ต้องส่งให้ผม)
 6. Supabase Dashboard → **Authentication → Providers → Google** → เปิด provider → วาง Client ID + Client Secret → Save
 
-## 2) LINE (ใช้เป็น Custom OIDC provider)
+## 2) LINE (ใช้เป็น Custom OIDC provider) — ⏸ เลื่อนเป็นเฟส 2 (ยังไม่ต้องทำตอนนี้ · เก็บคู่มือไว้ใช้เมื่อพร้อม)
 
 1. LINE Developers Console → Provider → **Create a LINE Login channel** (channel type: Web app)
 2. แท็บ **LINE Login** → **Callback URL** = `https://rivufpvxrfjfhsyamiet.supabase.co/auth/v1/callback`

@@ -17,7 +17,7 @@
 ## 2. ขอบเขต v1
 
 ทำ
-- ล็อกอิน Google + LINE (เปิดสมัครเอง)
+- ล็อกอิน **Google (ทำก่อน)** — **LINE เลื่อนเป็นเฟส 2** (yoru สั่ง 2026-09-16) · เปิดสมัครเอง ใครมีลิงก์ก็เข้าได้
 - บันทึกรายรับ/รายจ่าย 2 แตะ (จำนวน → บันทึก, หมวดเดาจากรายการเดิม), โอนระหว่างกระเป๋า
 - หน้าแรก: ยอดเดือนนี้ (รับ/จ่าย/คงเหลือ) + รายการล่าสุด · สลับเดือน
 - รายการทั้งหมด: ค้นหา (โน้ต + ชื่อหมวด) · กรอง ประเภท/หมวด/กระเป๋า/เดือน
@@ -43,7 +43,7 @@
 | สไตล์ | Tailwind CSS v4 (4.3.3) | utility, purge อัตโนมัติ |
 | DB + Auth | **Supabase** (Postgres + Auth + RLS) | เลือกโดยคุณ: ได้ auth+DB สำเร็จรูป ลดโค้ดที่ต้องเขียนเอง |
 | Query | `supabase-js` 2.116.0 + type ที่ generate จาก schema (`supabase gen types typescript`) + migration เป็น SQL (`supabase/migrations/*.sql`) | ไม่เพิ่ม ORM อีกชั้น · RLS เป็นด่านบังคับใช้จริง |
-| Auth flow | Supabase Auth: Google (built-in) + LINE (custom **OIDC** provider) | ยืนยันสด: https://access.line.me/.well-known/openid-configuration → 200 · scopes openid/profile/email · PKCE S256 · free plan ใส่ custom provider ได้ 3 ตัว |
+| Auth flow | Supabase Auth: **Google** (built-in, ทำก่อน) · LINE (custom OIDC) **เลื่อนเป็นเฟส 2** — โครง auth ต้องไม่ผูกกับเจ้าใดเจ้าหนึ่ง | ยืนยันสด: https://access.line.me/.well-known/openid-configuration → 200 · scopes openid/profile/email · PKCE S256 · free plan ใส่ custom provider ได้ 3 ตัว |
 | เทสต์ | `node --test` (Node 26.8.2 strip types ได้) + `@electric-sql/pglite` 0.5.8 | เครื่องนี้ไม่มี Docker → ไม่ใช้ `supabase start` |
 | Deploy | Vercel (แอป) + Supabase (DB/Auth) | ฟรีพอสำหรับ v1 |
 
@@ -121,7 +121,7 @@ TypeScript: ล่าสุดบน npm คือ **7.0.2** (คนละสา
 ## 9. รอคุณตัดสิน (ตอบเมื่อพร้อม ผมเดินต่อทันที)
 
 1. **AI**: ผู้ให้บริการ/model ไหน และส่งข้อมูลอะไรออกไป (ค่าเริ่มต้น = ยอดที่รวมแล้วตามหมวด/เดือน)
-2. **Supabase**: ให้ผมสร้างโปรเจกต์ Supabase (ภูมิภาค Singapore) ด้วยบัญชีคุณ หรือคุณสร้างเองแล้วส่ง URL + publishable key · Google/LINE client id+secret ต้องมาจากคุณ (อย่าส่งผ่านแชต — ใส่ใน dashboard)
+2. **Supabase**: ให้ผมสร้างโปรเจกต์ Supabase (ภูมิภาค Singapore) ด้วยบัญชีคุณ หรือคุณสร้างเองแล้วส่ง URL + publishable key · Google client id/secret ใส่ที่ dashboard (ทำแล้ว ✅) · **LINE ยังไม่ต้องทำ** — เลื่อนไว้ก่อน บอกเมื่ออยากทำ
 3. **Pro $25/เดือนไหม**: ถ้าไม่จ่าย โปรเจกต์จะหลับเมื่อไม่มีคนใช้ 1 สัปดาห์ และไม่มี backup อัตโนมัติ
 4. **โดเมน**: ชื่อแอป = JodTang (ยืนยันแล้ว) · มีโดเมนจริงไหม หรือใช้ `<project>.vercel.app` ไปก่อน
 5. **UX/UI**: เลือกแนวจากภาพที่คุณสร้างจาก `docs/design-prompts.md` (โหมดสว่างก่อน) → ผมเขียน `docs/DESIGN.md` ล็อกโทเคน
