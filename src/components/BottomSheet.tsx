@@ -61,13 +61,39 @@ export default function BottomSheet({ onClose }: Props) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [dateOffset, setDateOffset] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  // กระเป๋าเงินจริงของผู้ใช้ — แทนค่า "default" ลอย ๆ ที่ทำให้ Postgres ปฏิเสธ (คอลัมน์เป็น uuid)
+  const [account, setAccount] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [hasNoAccount, setHasNoAccount] = useState(false);
   const [categories, setCategories] = useState<
     { id: string; name: string; icon: string | null }[]
   >([]);
   const prevTabRef = useRef<TabKind>("expense");
 
   const amountSatang = Math.round(parseFloat(amount || "0") * 100);
-  const canSave = amountSatang > 0 && !isSaving;
+  const canSave = amountSatang > 0 && !isSaving && account !== null;
+
+  // โหลดกระเป๋าเงินจริงครั้งเดียวตอนเปิด sheet — ใช้บัญชีแรกเป็นค่าเริ่มต้น
+  useEffect(() => {
+    let cancelled = false;
+    const loadAccount = async () => {
+      const { listAccounts } = await import("@/app/actions/accounts");
+      const result = await listAccounts();
+      if (cancelled) return;
+      if ("data" in result && result.data.length > 0) {
+        setAccount({ id: result.data[0].id, name: result.data[0].name });
+      } else {
+        // ไม่มีบัญชีเลย — กันยิง server action ด้วย account_id ปลอม
+        setHasNoAccount(true);
+      }
+    };
+    loadAccount();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // โหลด categories เมื่อ tab เปลี่ยน
   useEffect(() => {
@@ -106,7 +132,7 @@ export default function BottomSheet({ onClose }: Props) {
 
   // บันทึก
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave || !account) return;
     setIsSaving(true);
 
     const tempId = crypto.randomUUID();
@@ -117,7 +143,7 @@ export default function BottomSheet({ onClose }: Props) {
     const optimisticTx: TransactionItem = {
       id: tempId,
       user_id: "optimistic",
-      account_id: "default",
+      account_id: account.id,
       category_id: categoryId,
       to_account_id: null,
       kind: activeTab,
@@ -137,7 +163,7 @@ export default function BottomSheet({ onClose }: Props) {
 
     try {
       const result = await createTransaction({
-        account_id: "default",
+        account_id: account.id,
         category_id: categoryId,
         kind: activeTab,
         amount: amountSatang,
@@ -288,6 +314,21 @@ export default function BottomSheet({ onClose }: Props) {
             />
           </div>
 
+          {/* ไม่มีกระเป๋าเงิน — บังคับไปสร้างก่อน ไม่ยิง action ให้ error uuid */}
+          {hasNoAccount && (
+            <div className="mb-4 rounded-xl bg-warn/10 p-3 text-center">
+              <p className="text-sm text-text">
+                ยังไม่มีกระเป๋าเงิน — สร้างกระเป๋าก่อนบันทึกรายการ
+              </p>
+              <a
+                href="/settings/accounts"
+                className="mt-2 inline-block min-h-[44px] rounded-btn border border-border bg-surface px-4 py-2 text-sm"
+              >
+                ไปที่ตั้งค่ากระเป๋าเงิน
+              </a>
+            </div>
+          )}
+
           {/* ปุ่มบันทึก */}
           <button
             type="button"
@@ -296,7 +337,11 @@ export default function BottomSheet({ onClose }: Props) {
             className={`w-full rounded-xl py-3.5 text-base font-semibold transition-colors ${canSave ? "bg-balance text-white active:bg-balance/90" : "bg-surface-2 text-text-muted cursor-not-allowed"}`}
             style={{ minHeight: "56px" }}
           >
-            {isSaving ? "กำลังบันทึก..." : "บันทึกรายการ"}
+            {hasNoAccount
+              ? "สร้างกระเป๋าเงินก่อนบันทึก"
+              : isSaving
+                ? "กำลังบันทึก..."
+                : "บันทึกรายการ"}
           </button>
         </div>
       </div>
