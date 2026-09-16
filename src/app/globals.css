@@ -35,3 +35,17 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* ─── Category Icon Tokens ─── */
+/* ใช้เป็น background-image ผ่าน tailwind arbitrary value: bg-[var(--icon-food)] */
+/* ไม่ hardcode ใน component — สลับสีได้โดยไม่แก้โค้ด */
+@theme {
+  --color-cat-food: #ea580c;
+  --color-cat-transport: #0284c7;
+  --color-cat-shopping: #db2777;
+  --color-cat-entertainment: #9333ea;
+  --color-cat-health: #16a34a;
+  --color-cat-education: #2563eb;
+  --color-cat-bills: #d97706;
+  --color-cat-other: #6b7280;
+}
