@@ -141,6 +141,29 @@ export async function restoreCategory(
 }
 
 /**
+ * ดึงรายการหมวดหมู่ที่ archive แล้ว (สำหรับส่วน "หมวดที่ซ่อนไว้" ในหน้าจัดการ)
+ */
+export async function listArchivedCategories(): Promise<
+  ActionResult<CategoryRow[]>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "ไม่ได้เข้าสู่ระบบ" };
+
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .not("archived_at", "is", null)
+    .order("name");
+
+  if (error) return { error: error.message };
+  return { data: (data ?? []) as CategoryRow[] };
+}
+
+/**
  * ดึงรายการหมวดหมู่ทั้งหมด (ไม่รวมที่ archive แล้ว)
  * @param kind - กรองตามชนิด (ถ้าไม่ระบุ ดึงทั้งหมด)
  */
