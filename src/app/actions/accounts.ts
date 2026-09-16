@@ -7,9 +7,11 @@
  * - ใช้ session client — RLS ป้องกันข้อมูลข้ามบัญชี
  * - archive = ตั้ง archived_at (ไม่ DELETE)
  * - ชื่อกระเป๋าซ้ำกันไม่ได้ต่อบัญชี (UNIQUE constraint ใน DB)
+ * - ยอดคงเหลือ = คำนวณจาก transactions (สดจาก DB ทุกครั้งที่เปิดหน้า) ไม่เก็บ cache
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { computeBalances, type AccountBalance } from "@/lib/account-balance";
 
 type AccountRow = {
   id: string;
@@ -157,4 +159,79 @@ export async function listAccounts(): Promise<
 
   if (error) return { error: error.message };
   return { data: (data ?? []) as AccountRow[] };
+}
+
+/**
+ * ดึงรายการกระเป๋าที่ archive แล้ว — ไว้ใช้แสดงกลุ่ม "ปิดใช้งานแล้ว" ในหน้า/accounts
+ */
+export async function listArchivedAccounts(): Promise<
+  ActionResult<AccountRow[]>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "ไม่ได้เข้าสู่ระบบ" };
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .not("archived_at", "is", null)
+    .order("name");
+
+  if (error) return { error: error.message };
+  return { data: (data ?? []) as AccountRow[] };
+}
+
+/**
+ * รายการกระเป๋าที่ใช้งานอยู่ + ยอดคงเหลือต่อกระเป๋า
+ *
+ * ยอด = คำนวณจาก transactions (รับ − จ่าย + โอนเข้า − โอนออก)
+ * hash ไม่เก็บยอดไว้ที่ row กระเป๋า (ไม่ทำแบบ cached) — คำนวณสดเพื่อให้แอปทั้งหมดเห็นตรงกัน
+ * กระเป๋าที่ archive ไม่รวม
+ */
+export async function listAccountsWithBalances(): Promise<
+  ActionResult<AccountBalance[]>
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "ไม่ได้เข้าสู่ระบบ" };
+
+  // ดึงกระเป๋าที่ใช้งานอยู่ + รายการที่ไม่ได้ลบ — 2 query รวมกันคำนวณฝั่ง server
+  const { data: accounts, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, name, currency")
+    .is("archived_at", null)
+    .order("name");
+
+  if (accountsError) return { error: accountsError.message };
+
+  const { data: txs, error: txsError } = await supabase
+    .from("transactions")
+    .select("kind, account_id, to_account_id, amount")
+    .is("deleted_at", null);
+
+  if (txsError) return { error: txsError.message };
+
+  const balances = computeBalances(
+    (txs ?? []).map((tx: Record<string, unknown>) => ({
+      kind: tx.kind as "income" | "expense" | "transfer",
+      account_id: tx.account_id as string,
+      to_account_id: (tx.to_account_id as string | null) ?? null,
+      amount: String(tx.amount),
+    }))
+  );
+
+  return {
+    data: (accounts ?? []).map((a: Record<string, unknown>) => ({
+      id: a.id as string,
+      name: a.name as string,
+      currency: a.currency as string,
+      balance: balances.get(a.id as string) ?? 0,
+    })),
+  };
 }
