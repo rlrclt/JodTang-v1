@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SmoothLink } from "@/components/SmoothLink";
 import { signOut } from "@/lib/supabase/actions";
 
 // หน้าตั้งค่า (hub) — จุดเข้าถึงการตั้งค่าทั้งหมด + ปุ่มออกจากระบบ
@@ -23,7 +23,7 @@ export default function SettingsPage() {
       <main className="flex-1 px-4 pb-4">
         <section aria-label="การตั้งค่าทั้งหมด" className="grid gap-2">
           {items.map((item) => (
-            <Link
+            <SmoothLink
               key={item.href}
               href={item.href}
               className="flex min-h-[56px] items-center gap-3 rounded-btn border border-border bg-surface px-4 py-3 text-text transition-colors hover:bg-surface-2"
@@ -31,7 +31,7 @@ export default function SettingsPage() {
               <ChannelIcon icon={item.icon} />
               <span className="flex-1">{item.label}</span>
               <ChevronRight />
-            </Link>
+            </SmoothLink>
           ))}
         </section>
       </main>

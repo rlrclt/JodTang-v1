@@ -6,7 +6,7 @@
  * ส่วนเรื่องเกิน 20,000 แถว route handler จะตอบ 413 พร้อมข้อความให้กรองแคบลง
  * (ข้อความเตือนนี้ใส่บนหน้าด้วยเพื่อให้ผู้ใช้รู้ล่วงหน้า)
  */
-import Link from "next/link";
+import { SmoothLink } from "@/components/SmoothLink";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +79,9 @@ export default function ExportPage() {
       </div>
 
       <div className="mt-6">
-        <Link href="/settings" className="text-sm text-focus underline">
+        <SmoothLink href="/settings" className="text-sm text-focus underline">
           ← กลับไปหน้าตั้งค่า
-        </Link>
+        </SmoothLink>
       </div>
     </div>
   );

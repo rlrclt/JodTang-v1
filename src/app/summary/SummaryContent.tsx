@@ -7,7 +7,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { SmoothLink } from "@/components/SmoothLink";
 import { formatSatang } from "@/lib/format-satang";
 import type {
   CategorySummary,
@@ -57,24 +57,24 @@ export default function SummaryContent(props: Props) {
     <div className="mx-auto max-w-lg px-4 py-4">
       {/* Month navigation */}
       <div className="mb-4 flex items-center justify-between">
-        <Link
+        <SmoothLink
           href={`/summary?month=${prevYear}-${String(prevMonth).padStart(2, "0")}`}
           className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-btn)] text-text-muted transition-colors hover:bg-surface active:scale-95"
           aria-label="เดือนก่อนหน้า"
         >
           ‹
-        </Link>
+        </SmoothLink>
         <h1 className="text-base font-semibold text-text tabular-nums">
           {monthLabel}
         </h1>
         {canGoNext ? (
-          <Link
+          <SmoothLink
             href={`/summary?month=${nextYear}-${String(nextMonth).padStart(2, "0")}`}
             className="flex h-11 w-11 items-center justify-center rounded-[var(--radius-btn)] text-text-muted transition-colors hover:bg-surface active:scale-95"
             aria-label="เดือนถัดไป"
           >
             ›
-          </Link>
+          </SmoothLink>
         ) : (
           <div className="h-11 w-11" />
         )}

@@ -86,7 +86,7 @@ export default function ExpenseBarChart({
             key={cat.category_id}
             className="flex items-center gap-1 text-xs text-text"
           >
-            <CategoryColorDot name={cat.name} size={14} />
+            <CategoryColorDot name={cat.name} icon={cat.icon} size={14} />
             <span>{cat.name}</span>
           </div>
         ))}

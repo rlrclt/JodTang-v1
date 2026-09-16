@@ -8,41 +8,48 @@ const ROOT = import.meta.dirname + "/../..";
 async function loadSql(path: string): Promise<string> {
   return readFile(join(ROOT, path), "utf-8");
 }
+type TestDb = {
+  exec(sql: string): Promise<unknown>;
+  query(sql: string, params?: readonly unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  close(): Promise<unknown>;
+};
 
-async function loadMigrations(db: any) {
+async function loadMigrations(db: TestDb) {
   const shim = await loadSql("supabase/tests/auth_shim.sql");
   const m1 = await loadSql("supabase/migrations/00001_create_tables.sql");
   const m2 = await loadSql("supabase/migrations/00002_rls.sql");
+  const m3 = await loadSql("supabase/migrations/00003_add_profiles_email.sql");
   await db.exec(shim);
   await db.exec(m1);
   await db.exec(m2);
+  await db.exec(m3);
 }
 
 const USER_A = "11111111-1111-1111-1111-111111111111";
 const USER_B = "22222222-2222-2222-2222-222222222222";
 
 /** ตั้ง role เป็น authenticated + จำลอง JWT claims ของผู้ใช้ */
-async function setAuth(db: any, userId: string) {
+async function setAuth(db: TestDb, userId: string) {
   await db.exec("SET ROLE authenticated");
   await db.exec(
     `SET request.jwt.claims = '${JSON.stringify({ sub: userId })}'`
   );
 }
 
-async function resetAuth(db: any) {
+async function resetAuth(db: TestDb) {
   await db.exec("RESET ROLE");
   await db.exec("SET request.jwt.claims = ''");
 }
 
 /** สร้าง user ใน auth.users + profiles (ใช้ reset role ก่อน) */
-async function ensureUser(db: any, userId: string) {
+async function ensureUser(db: TestDb, userId: string) {
   await db.exec("RESET ROLE");
   await db.exec(`INSERT INTO auth.users (id) VALUES ('${userId}') ON CONFLICT DO NOTHING`);
   await db.exec(`INSERT INTO profiles (id) VALUES ('${userId}') ON CONFLICT DO NOTHING`);
 }
 
 describe("JodTang schema v1", () => {
-  let db: any;
+  let db: TestDb;
 
   before(async () => {
     const { PGlite } = await import("@electric-sql/pglite");
@@ -188,13 +195,24 @@ describe("JodTang schema v1", () => {
   });
 
   describe("trigger: handle_new_user", () => {
-    it("creates profile when user inserted into auth.users", async () => {
+    it("creates profile and stores Google email", async () => {
       await db.exec("RESET ROLE");
       const newId = "99999999-9999-9999-9999-999999999999";
       await db.exec(`INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES ('${newId}', 'trigger@test.com', '{"full_name": "Trigger Test"}'::jsonb)`);
-      const r = await db.query("SELECT full_name FROM profiles WHERE id = $1", [newId]);
+      const r = await db.query("SELECT full_name, email FROM profiles WHERE id = $1", [newId]);
       assert.equal(r.rows.length, 1, "profile auto-created");
       assert.equal(r.rows[0].full_name, "Trigger Test");
+      assert.equal(r.rows[0].email, "trigger@test.com");
+      await db.exec(`DELETE FROM profiles WHERE id = '${newId}'`);
+      await db.exec(`DELETE FROM auth.users WHERE id = '${newId}'`);
+    });
+
+    it("keeps email null for users without an email", async () => {
+      await db.exec("RESET ROLE");
+      const newId = "88888888-8888-8888-8888-888888888888";
+      await db.exec(`INSERT INTO auth.users (id, raw_user_meta_data) VALUES ('${newId}', '{"full_name": "No Email"}'::jsonb)`);
+      const r = await db.query("SELECT email FROM profiles WHERE id = $1", [newId]);
+      assert.equal(r.rows[0].email, null);
       await db.exec(`DELETE FROM profiles WHERE id = '${newId}'`);
       await db.exec(`DELETE FROM auth.users WHERE id = '${newId}'`);
     });

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createTransaction } from "@/app/actions/transactions";
 import { useTransactions } from "./TransactionsProvider";
+import CategoryIcon from "@/components/CategoryIcon";
 import type { TransactionItem } from "@/hooks/useTransactionsHook";
 
 /**
@@ -275,7 +276,7 @@ export default function BottomSheet({ onClose }: Props) {
                     }
                     className={`flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm transition-colors ${categoryId === cat.id ? "bg-balance text-white" : "bg-surface text-text"}`}
                   >
-                    {cat.icon && <span>{cat.icon}</span>}
+                    <CategoryIcon icon={cat.icon} className="h-4 w-4" />
                     {cat.name}
                   </button>
                 ))}

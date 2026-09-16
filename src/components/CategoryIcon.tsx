@@ -125,7 +125,8 @@ export default function CategoryIcon({
   icon: string | null;
   className?: string;
 }) {
-  const name = icon && isCategoryIconName(icon) ? icon : "more";
+  const baseIcon = icon?.split("#", 1)[0] ?? "";
+  const name = isCategoryIconName(baseIcon) ? baseIcon : "more";
   return (
     <svg
       width="24"

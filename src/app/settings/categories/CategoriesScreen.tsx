@@ -8,7 +8,7 @@ import {
   restoreCategory,
   listCategories,
 } from "@/app/actions/categories";
-import Link from "next/link";
+import { SmoothLink } from "@/components/SmoothLink";
 import CategoryIcon, {
   CATEGORY_ICONS,
   isCategoryIconName,
@@ -256,12 +256,12 @@ export default function CategoriesScreen(props: {
       <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 py-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">หมวดหมู่</h1>
-          <Link
+          <SmoothLink
             href="/settings"
             className="flex min-h-[44px] items-center text-sm text-text-muted"
           >
             กลับ
-          </Link>
+          </SmoothLink>
         </div>
       </header>
 

@@ -2,6 +2,7 @@
 
 import { formatSatang } from "@/lib/format-satang";
 import type { TransactionItem as TxItem } from "@/hooks/useTransactionsHook";
+import CategoryIcon from "@/components/CategoryIcon";
 
 /** แปลง kind เป็น label ภาษาไทย */
 function kindLabel(kind: TxItem["kind"]): string {
@@ -50,9 +51,8 @@ export default function TransactionItemComponent({ transaction }: Props) {
 
   return (
     <li className="flex items-center gap-3 border-b border-border px-4 py-3">
-      {/* ไอคอนหมวด */}
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-surface text-lg">
-        {tx.categories?.icon ?? "💰"}
+        {tx.categories ? <CategoryIcon icon={tx.categories.icon} /> : "💰"}
       </div>
 
       {/* รายละเอียด */}

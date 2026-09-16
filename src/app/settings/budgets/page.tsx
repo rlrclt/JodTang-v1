@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SmoothLink } from "@/components/SmoothLink";
 import { createClient } from "@/lib/supabase/server";
 import { listBudgets } from "@/app/actions/budgets";
 import { listCategories } from "@/app/actions/categories";
@@ -93,12 +93,12 @@ export default async function BudgetsPage({
       <div className="flex flex-col items-center justify-center p-8 min-h-[60dvh]">
         <p className="text-expense mb-4">โหลดงบไม่สำเร็จ</p>
         <p className="text-text-muted text-sm mb-6">{budgetsRes.error}</p>
-        <Link
+        <SmoothLink
           href="/settings"
           className="min-h-[44px] rounded-btn bg-surface px-5 py-3 text-sm"
         >
           กลับหน้าตั้งค่า
-        </Link>
+        </SmoothLink>
       </div>
     );
   }

@@ -12,6 +12,7 @@ import type { TransactionRecord, BudgetRecord } from "@/app/actions/summary";
 export type CategorySummary = {
   category_id: string;
   name: string;
+  icon: string | null;
   total: number; // bigint สตางค์
 };
 
@@ -48,7 +49,7 @@ export type BudgetProgress = {
 export function computeCategoryExpenses(
   transactions: TransactionRecord[]
 ): CategorySummary[] {
-  const map = new Map<string, { name: string; total: number }>();
+  const map = new Map<string, { name: string; icon: string | null; total: number }>();
 
   for (const t of transactions) {
     if (t.kind !== "expense") continue;
@@ -60,15 +61,17 @@ export function computeCategoryExpenses(
     } else {
       map.set(t.category_id, {
         name: t.categories.name,
+        icon: t.categories.icon,
         total: t.amount,
       });
     }
   }
 
   return Array.from(map.entries())
-    .map(([id, { name, total }]) => ({
+    .map(([id, { name, icon, total }]) => ({
       category_id: id,
       name,
+      icon,
       total,
     }))
     .sort((a, b) => b.total - a.total);

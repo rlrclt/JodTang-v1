@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { SmoothLink } from "./SmoothLink";
 import { usePathname } from "next/navigation";
 
 const tabs = [
@@ -31,7 +31,7 @@ export default function TabBar() {
 
           return (
             <li key={tab.href} className="flex-1">
-              <Link
+              <SmoothLink
                 href={tab.href}
                 role="tab"
                 aria-selected={isActive}
@@ -41,7 +41,7 @@ export default function TabBar() {
               >
                 <TabIcon icon={tab.icon} active={isActive} />
                 <span>{tab.label}</span>
-              </Link>
+              </SmoothLink>
             </li>
           );
         })}

@@ -28,6 +28,18 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   other: "other",
   ["อื่น"]: "other",
 };
+const ICON_NAME_MAP: Record<string, string> = {
+  utensils: "food",
+  cart: "shopping",
+  bus: "transport",
+  home: "other",
+  heart: "health",
+  book: "education",
+  game: "entertainment",
+  gift: "other",
+  briefcase: "other",
+  more: "other",
+};
 
 // SVG path data สำหรับแต่ละ icon (ไม่ใช่สี — สีมาจาก CSS token)
 const ICON_PATHS: Record<string, string> = {
@@ -41,15 +53,18 @@ const ICON_PATHS: Record<string, string> = {
   other: "M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
 };
 
-function getCategoryKey(name: string): string {
-  return CATEGORY_ICON_MAP[name] ?? "other";
+function getCategoryKey(name: string, icon: string | null): string {
+  const iconName = icon?.split("#", 1)[0];
+  return (iconName && ICON_NAME_MAP[iconName]) || CATEGORY_ICON_MAP[name] || "other";
 }
 
 export default function CategoryIcon({
   name,
+  icon = null,
   size = 20,
 }: {
   name: string | null;
+  icon?: string | null;
   size?: number;
 }) {
   if (!name) {
@@ -78,7 +93,7 @@ export default function CategoryIcon({
     );
   }
 
-  const key = getCategoryKey(name);
+  const key = getCategoryKey(name, icon);
   const colorVar = `var(--color-cat-${key})`;
   const pathData = ICON_PATHS[key] ?? ICON_PATHS.other;
 

@@ -12,7 +12,8 @@ const tx = (
   kind: "income" | "expense" | "transfer",
   amount: number,
   catId?: string,
-  catName?: string
+  catName?: string,
+  icon: string | null = null
 ) => ({
   id: catId ?? "00000000-0000-0000-0000-000000000000",
   kind,
@@ -20,7 +21,7 @@ const tx = (
   category_id: catId ?? null,
   occurred_at: "2026-09-15T05:00:00.000Z",
   categories: catId
-    ? { id: catId, name: catName ?? "cat", icon: null }
+    ? { id: catId, name: catName ?? "cat", icon }
     : null,
 });
 
@@ -43,6 +44,12 @@ describe("computeCategoryExpenses", () => {
     assert.equal(result[0].category_id, "c2"); // เรียงมาก → น้อย
     assert.equal(result[0].total, 2000);
     assert.equal(result[1].total, 1500);
+  });
+  it("preserves the icon stored on the category", () => {
+    const result = computeCategoryExpenses([
+      tx("expense", 1000, "c1", "มื้อกลางวัน", "utensils#tomato"),
+    ]);
+    assert.equal(result[0].icon, "utensils#tomato");
   });
 
   it("ignores income and transfer", () => {
