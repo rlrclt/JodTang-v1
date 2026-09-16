@@ -42,4 +42,16 @@ describe("computeBalances", () => {
     ]);
     assert.equal(balances.get(A), 12344);
   });
+  it("คำนวณหลายกระเป๋าพร้อมกัน ทั้งรายรับ รายจ่าย โอน และคงเหลือติดลบ", () => {
+    const C = "c1";
+    const balances = computeBalances([
+      { kind: "income", account_id: A, to_account_id: null, amount: 20000 },
+      { kind: "transfer", account_id: A, to_account_id: B, amount: 5000 },
+      { kind: "expense", account_id: B, to_account_id: null, amount: 7000 },
+      { kind: "expense", account_id: C, to_account_id: null, amount: 1500 },
+    ]);
+    assert.equal(balances.get(A), 15000);
+    assert.equal(balances.get(B), -2000);
+    assert.equal(balances.get(C), -1500);
+  });
 });

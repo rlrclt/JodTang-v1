@@ -55,13 +55,13 @@ function getOccurrenceDate(dayOffset: number): string {
 }
 
 export default function BottomSheet({ onClose }: Props) {
-  const { addOptimistic } = useTransactions();
   const [activeTab, setActiveTab] = useState<TabKind>("expense");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [dateOffset, setDateOffset] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const { addOptimistic, refresh } = useTransactions();
   // กระเป๋าเงินจริงของผู้ใช้ — แทนค่า "default" ลอย ๆ ที่ทำให้ Postgres ปฏิเสธ (คอลัมน์เป็น uuid)
   const [account, setAccount] = useState<{
     id: string;
@@ -177,6 +177,7 @@ export default function BottomSheet({ onClose }: Props) {
         throw new Error(result.error);
       }
 
+      await refresh();
       onClose();
     } catch (err) {
       console.error("บันทึกล้มเหลว:", err);

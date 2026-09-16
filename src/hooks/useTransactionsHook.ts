@@ -12,8 +12,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getMonthData } from "@/app/actions/get-month-data";
+import { listAccountsWithBalances } from "@/app/actions/accounts";
+import type { AccountBalance } from "@/lib/account-balance";
 import { createClient } from "@/lib/supabase/client";
-import { computeSummary, type MonthSummary } from "@/lib/summary";
+import type { MonthSummary } from "@/lib/summary";
 
 export type TransactionItem = {
   id: string;
@@ -39,6 +41,7 @@ export type TransactionsHook = {
   setMonth: (m: string) => void;
   transactions: TransactionItem[];
   summary: MonthSummary;
+  accountBalances: AccountBalance[];
   isLoading: boolean;
   error: string | null;
   addOptimistic: (tx: TransactionItem) => void;
@@ -74,6 +77,7 @@ function getInitialMonth(): string {
 export function useTransactionsHook(): TransactionsHook {
   const [month, setMonthState] = useState<string>(getInitialMonth);
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [accountBalances, setAccountBalances] = useState<AccountBalance[]>([]);
   const [summary, setSummary] = useState<MonthSummary>({
     income: 0,
     expense: 0,
@@ -110,13 +114,19 @@ export function useTransactionsHook(): TransactionsHook {
 
       try {
         const range = getDateRange(monthStr);
-        const result = await getMonthData(range);
+        const [result, accountResult] = await Promise.all([
+          getMonthData(range),
+          listAccountsWithBalances(),
+        ]);
 
         if ("error" in result) {
           setError(result.error);
+        } else if ("error" in accountResult) {
+          setError(accountResult.error);
         } else {
           setTransactions(result.data.recent);
           setSummary(result.data.summary);
+          setAccountBalances(accountResult.data);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาด");
@@ -173,6 +183,7 @@ export function useTransactionsHook(): TransactionsHook {
     setMonth,
     transactions,
     summary,
+    accountBalances,
     isLoading,
     error,
     addOptimistic,

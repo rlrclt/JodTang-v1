@@ -3,6 +3,8 @@
 import { useTransactions } from "@/components/TransactionsProvider";
 import BalanceCard from "@/components/BalanceCard";
 import HomeTransactionItem from "@/components/HomeTransactionItem";
+import { formatSatang } from "@/lib/format-satang";
+import { SmoothLink } from "@/components/SmoothLink";
 
 /** แปลง month string "YYYY-MM-01" เป็นชื่อเดือนภาษาไทย + ปี */
 function monthLabel(monthStr: string): string {
@@ -24,8 +26,16 @@ function shiftMonth(monthStr: string, delta: number): string {
 }
 
 export default function HomePage() {
-  const { month, setMonth, transactions, summary, isLoading, error, refresh } =
-    useTransactions();
+  const {
+    month,
+    setMonth,
+    transactions,
+    summary,
+    accountBalances,
+    isLoading,
+    error,
+    refresh,
+  } = useTransactions();
 
   const handlePrev = () => setMonth(shiftMonth(month, -1));
   const handleNext = () => setMonth(shiftMonth(month, 1));
@@ -98,6 +108,34 @@ export default function HomePage() {
           balance={summary.balance}
         />
       </div>
+      {accountBalances.length > 0 && (
+        <section className="mb-5" aria-label="ยอดเงินในกระเป๋า">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium text-text-muted">เงินในกระเป๋า</h2>
+            <SmoothLink href="/settings/accounts" className="text-xs text-focus">
+              จัดการ
+            </SmoothLink>
+          </div>
+          <ul className="grid gap-2">
+            {accountBalances.map((account) => (
+              <li
+                key={account.id}
+                className="flex items-center justify-between rounded-xl bg-surface px-4 py-3"
+              >
+                <span className="truncate text-sm font-medium">{account.name}</span>
+                <span
+                  className={`ml-3 flex-shrink-0 text-sm font-semibold tabular-nums ${
+                    account.balance < 0 ? "text-expense" : "text-balance"
+                  }`}
+                >
+                  {formatSatang(account.balance)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
 
       {/* รายการล่าสุด */}
       {isEmpty ? (
