@@ -23,23 +23,11 @@ import SummaryContent from "./SummaryContent";
 
 export const dynamic = "force-dynamic";
 
-// ชื่อเดือนภาษาไทย
-const THAI_MONTH_NAMES = [
-  "",
-  "มกราคม",
-  "กุมภาพันธ์",
-  "มีนาคม",
-  "เมษายน",
-  "พฤษภาคม",
-  "มิถุนายน",
-  "กรกฎาคม",
-  "สิงหาคม",
-  "กันยายน",
-  "ตุลาคม",
-  "พฤศจิกายน",
-  "ธันวาคม",
-];
-
+const summaryMonthFormatter = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+  timeZone: "Asia/Bangkok",
+  month: "long",
+  year: "numeric",
+});
 export default async function SummaryPage({
   searchParams,
 }: {
@@ -103,7 +91,7 @@ export default async function SummaryPage({
   const canGoNext =
     nextYear < now.year || (nextYear === now.year && nextMonth <= now.month);
 
-  const monthLabel = `${THAI_MONTH_NAMES[selectedMonth]} ${selectedYear + 543}`;
+  const monthLabel = summaryMonthFormatter.format(new Date(selectedYear, selectedMonth - 1, 1));
 
   return (
     <SummaryContent

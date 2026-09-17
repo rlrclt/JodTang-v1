@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback } from "react";
+import { useSmoothNavigate } from "@/lib/motion/useSmoothNavigate";
 import { buildTransactionParams } from "@/lib/transaction-params";
 
 type Props = {
@@ -10,18 +10,31 @@ type Props = {
   filters?: Record<string, string>;
 };
 
-const MONTH_NAMES = [
-  "", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
-];
-
+const monthSelectorFormatter = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+  timeZone: "Asia/Bangkok",
+  month: "short",
+  year: "numeric",
+});
 /**
  * เลือกเดือน ‹ › — เปลี่ยน URL params (shareable)
  */
 export default function MonthSelector({ year, month, filters }: Props) {
-  const router = useRouter();
+  const navigate = useSmoothNavigate();
 
-  const navigate = useCallback(
+  const navigateTo = useCallback(
+    (newYear: number, newMonth: number, direction: "forward" | "back") => {
+      const params = buildTransactionParams({
+        month: newMonth,
+        year: newYear,
+        filters: filters as any,
+      });
+      // ใช้ transition มีทิศทางแทน router.push เปล่า (กันภาพตัดแบบพรึบ)
+      navigate(`/transactions?${params.toString()}`, { direction });
+    },
+    [filters, navigate]
+  );
+
+  const navigateByDelta = useCallback(
     (delta: number) => {
       let newMonth = month + delta;
       let newYear = year;
@@ -32,32 +45,27 @@ export default function MonthSelector({ year, month, filters }: Props) {
         newMonth = 1;
         newYear += 1;
       }
-      const params = buildTransactionParams({
-        month: newMonth,
-        year: newYear,
-        filters: filters as any,
-      });
-      router.push(`/transactions?${params.toString()}`);
+      navigateTo(newYear, newMonth, delta > 0 ? "forward" : "back");
     },
-    [month, year, filters, router]
+    [month, year, navigateTo]
   );
 
   return (
     <div className="flex items-center justify-center gap-4">
       <button
         type="button"
-        onClick={() => navigate(-1)}
+        onClick={() => navigateByDelta(-1)}
         aria-label="เดือนก่อนหน้า"
         className="flex h-10 w-10 items-center justify-center rounded-full text-lg text-text-muted transition-colors hover:bg-surface active:bg-surface-2"
       >
         ‹
       </button>
       <span className="min-w-[120px] text-center text-base font-semibold text-text">
-        {MONTH_NAMES[month]} {year + 543}
+        {monthSelectorFormatter.format(new Date(year, month - 1, 1))}
       </span>
       <button
         type="button"
-        onClick={() => navigate(1)}
+        onClick={() => navigateByDelta(1)}
         aria-label="เดือนถัดไป"
         className="flex h-10 w-10 items-center justify-center rounded-full text-lg text-text-muted transition-colors hover:bg-surface active:bg-surface-2"
       >
