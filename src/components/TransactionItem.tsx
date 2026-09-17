@@ -34,8 +34,8 @@ export default function TransactionItem({
   const displayNote = note || kindLabel;
   const sublabel =
     kind === "transfer"
-      ? `${account_name || ""} → ${to_account_name || ""}`
-      : category_name || account_name || "";
+      ? `${account_name || "?"} → ${to_account_name || "?"}`
+      : [category_name, account_name].filter(Boolean).join("  ·  ");
 
   return (
     <button
