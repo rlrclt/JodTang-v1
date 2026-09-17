@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useTransactionsLive } from "@/hooks/useTransactionsLive";
+import { useSwipeMonth } from "@/hooks/useSwipeMonth";
+import { useSmoothNavigate } from "@/lib/motion/useSmoothNavigate";
+import { buildTransactionParams } from "@/lib/transaction-params";
 import TransactionItem from "@/components/TransactionItem";
 import TransactionDetailSheet from "@/components/TransactionDetailSheet";
-import BalanceCard from "@/components/BalanceCard";
-import MonthSelector from "@/components/MonthSelector";
+import MonthCalendar from "@/components/MonthCalendar";
 import FilterBar from "@/components/FilterBar";
 import TransactionListSkeleton from "@/components/TransactionListSkeleton";
 import EmptyState from "@/components/EmptyState";
@@ -56,6 +60,53 @@ export default function TransactionPageClient({
   const [error, setError] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<TransactionRow | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const navigate = useSmoothNavigate();
+
+  // URL เดือนข้างๆ (คงตัวกรองเดิม) — ใช้ทั้งสไลด์นิ้วและ prefetch ล่วงหน้า
+  const monthUrl = useCallback(
+    (delta: number) => {
+      let m = month + delta;
+      let y = year;
+      if (m < 1) {
+        m = 12;
+        y -= 1;
+      } else if (m > 12) {
+        m = 1;
+        y += 1;
+      }
+      const params = buildTransactionParams({
+        month: m,
+        year: y,
+        filters: initialFilters as any,
+      });
+      return `/transactions?${params.toString()}`;
+    },
+    [month, year, initialFilters]
+  );
+
+  // อุ่นเดือนข้างๆ ล่วงหน้า — สไลด์ไปจะได้ไม่ต้องรอ (มีผลเฉพาะ production)
+  useEffect(() => {
+    router.prefetch(monthUrl(-1));
+    router.prefetch(monthUrl(1));
+  }, [router, monthUrl]);
+
+  // สไลด์นิ้วซ้าย/ขวาเพื่อเปลี่ยนเดือน (ทิศตรงกับท่า transition)
+  const { swipeRef, swipeHandlers, swipeStyle } = useSwipeMonth({
+    onSwipeLeft: () => navigate(monthUrl(1), { direction: "forward" }),
+    onSwipeRight: () => navigate(monthUrl(-1), { direction: "back" }),
+  });
+
+  // กลับมาโฟกัสแล้วข้อมูลเก่าเกิน 60 วิ → สั่ง server รีเฟรชเงียบ (ไม่โชว์ loading)
+  const markFresh = useTransactionsLive(
+    useCallback(() => {
+      router.refresh();
+    }, [router])
+  );
+  useEffect(() => {
+    // เพิ่ง render จาก server = สดแล้ว
+    markFresh();
+  }, [markFresh]);
 
   // โหลดหน้าถัดไป (keyset)
   const loadMore = useCallback(async () => {
@@ -99,24 +150,45 @@ export default function TransactionPageClient({
     return () => observer.disconnect();
   }, [loadMore, loading, cursor]);
 
+  const monthStr = `${year}-${String(month).padStart(2, "0")}-01`;
+  const summary = useMemo(() => ({
+    income: totalIncome,
+    expense: totalExpense,
+    balance: totalIncome - totalExpense,
+  }), [totalIncome, totalExpense]);
+
+  const handleMonthChange = useCallback((newMonthStr: string) => {
+    const [y, m] = newMonthStr.split("-").map(Number);
+    const params = buildTransactionParams({
+      month: m,
+      year: y,
+      filters: initialFilters as any,
+    });
+    navigate(`/transactions?${params.toString()}`);
+  }, [initialFilters, navigate]);
+
   return (
-    <div className="min-h-[100dvh]">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-bg/95 backdrop-blur-sm">
-        <div className="px-4 pt-4 pb-2">
-          <h1 className="mb-3 text-xl font-bold text-text">รายการทั้งหมด</h1>
-          <MonthSelector year={year} month={month} filters={initialFilters} />
-        </div>
-        <div className="py-2">
-          <BalanceCard income={totalIncome} expense={totalExpense} />
-        </div>
-        <div className="py-2">
-          <FilterBar accounts={accounts} categories={categories} />
-        </div>
+    <div className="min-h-[100dvh] p-4">
+      {/* Header — เหมือนหน้าแรก ใช้ MonthCalendar (iOS Zoom & Dynamic Capsule) */}
+      <div className="mb-3">
+        <MonthCalendar
+          month={monthStr}
+          setMonth={handleMonthChange}
+          summary={summary}
+        />
       </div>
 
-      {/* Transaction list */}
-      <div className="mt-2 pb-28">
+      {/* Filter bar */}
+      <div className="mb-2">
+        <FilterBar accounts={accounts} categories={categories} />
+      </div>
+      {/* Transaction list — สไลด์เฉพาะส่วนนี้ เฮดเดอร์ค้างที่เดิม */}
+      <div
+        ref={swipeRef}
+        {...swipeHandlers}
+        style={swipeStyle}
+        className="mt-2"
+      >
         {items.length === 0 && !loading ? (
           <EmptyState />
         ) : (
@@ -163,6 +235,9 @@ export default function TransactionPageClient({
           onDeleted={() => {
             setItems((prev) => prev.filter((it) => it.id !== selectedTx.id));
             setSelectedTx(null);
+            // ลบแบบ local-only เลยต้องล้าง router cache เอง — กันแท็บอื่นโชว์ยอดเก่า
+            router.refresh();
+            markFresh();
           }}
         />
       )}
