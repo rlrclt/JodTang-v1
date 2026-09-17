@@ -453,27 +453,32 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
               : "pointer-events-none absolute inset-0 translate-y-3.5 scale-75 opacity-0"
           }`}
         >
-          {/* Year selector stepper bar */}
-          <div className="mb-2.5 flex items-center justify-between rounded-xl bg-surface-2/80 px-2 py-1">
-            <button
-              type="button"
-              onClick={() => setNavYear((y) => y - 1)}
-              className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-bold text-text hover:bg-surface active:scale-90 transition-all"
-            >
-              <span>‹</span>
-              <span>{navYear + BE - 1}</span>
-            </button>
-            <span className="text-xs font-extrabold text-focus tracking-wide">
-              พ.ศ. {navYear + BE} ({navYear})
-            </span>
-            <button
-              type="button"
-              onClick={() => setNavYear((y) => y + 1)}
-              className="flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-bold text-text hover:bg-surface active:scale-90 transition-all"
-            >
-              <span>{navYear + BE + 1}</span>
-              <span>›</span>
-            </button>
+          {/* iOS Horizontal Year Wheel / Slider (เลื่อนปัดเลือกปีได้อิสระ) */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <span className="text-[10px] font-semibold text-text-muted">เลื่อนเพื่อเลือกปี</span>
+              <span className="text-[11px] font-bold text-focus">พ.ศ. {navYear + BE}</span>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 px-1 scrollbar-hide snap-x snap-mandatory">
+              {Array.from({ length: 11 }, (_, i) => {
+                const y = today.year - 5 + i;
+                const isSelected = y === navYear;
+                return (
+                  <button
+                    key={y}
+                    type="button"
+                    onClick={() => setNavYear(y)}
+                    className={`shrink-0 snap-center rounded-full px-3.5 py-1 text-xs font-bold transition-all active:scale-90 ${
+                      isSelected
+                        ? "bg-focus text-white shadow-md shadow-focus/25 scale-105"
+                        : "bg-surface-2/80 text-text-muted hover:text-text hover:bg-surface-2"
+                    }`}
+                  >
+                    {y + BE}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-2 pt-0.5">
             {Array.from({ length: 12 }, (_, i) => {
