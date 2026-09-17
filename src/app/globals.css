@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* dark: อิง class .dark ของเรา (ไม่ใช่ค่าของ OS โดยตรง) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─── Design Tokens ─── */
 /* ค่าเหล่านี้ hardcode ใน component จนกว่า docs/DESIGN.md จะล็อก — สลับธีมได้โดยไม่แก้ component */
 @theme {
@@ -14,6 +17,9 @@
   --color-balance: #2563eb;
   --color-warn: #f59e0b;
   --color-focus: #3b82f6;
+
+  /* พื้น dock ลอย (iOS: ขาวกระจก / มืด: ดำกระจก) — ใช้เฉพาะ TabBar ไม่กระทบทั้งแอป */
+  --color-dock: #ffffff;
 
   /* สีจุดหมวดหมู่ (8 สีกราฟ) — ชื่อชัดเจน อ้างจาก component ด้วย bg-cat-* / text-cat-* ได้ */
   --color-cat-tomato: #ef4444;
@@ -32,6 +38,26 @@
   --radius-pill: 9999px;
 
   --font-thai: "IBM Plex Sans Thai", system-ui, "Sarabun", sans-serif;
+}
+
+/* ─── Dark theme ─── */
+/* สลับด้วย class .dark ที่ <html> — component อ้างโทเคนเดิมทั้งหมด ไม่ต้องแก้สักไฟล์ */
+.dark {
+  --color-bg: #0e1318;
+  --color-surface: #171e26;
+  --color-surface-2: #222c37;
+  --color-border: #2c3742;
+  --color-text: #e9eef3;
+  --color-text-muted: #9aa7b4;
+  --color-income: #4ade80;
+  --color-expense: #f87171;
+  --color-balance: #60a5fa;
+  --color-warn: #fbbf24;
+  --color-focus: #60a5fa;
+
+  --color-dock: #141a21;
+
+  --color-cat-graphite: #9ca3af;
 }
 
 /* ─── Base ─── */
@@ -96,6 +122,81 @@ body {
 }
 
 /*
+ * ท่าสไลด์แบบ iOS — hook ตั้ง html[data-view-direction] ก่อนเริ่ม transition
+ * ใช้แค่ transform/opacity (compositor-only) ตามกติกา motion ของโปรเจกต์
+ * forward = ดันหน้าใหม่จากขวา · back = ดันหน้าก่อนจากซ้าย · fade (ค่าเริ่มต้น) ใช้ cross-fade ด้านบน
+ */
+html[data-view-direction="forward"]::view-transition-old(root),
+html[data-view-direction="back"]::view-transition-old(root) {
+  z-index: 1;
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+}
+
+html[data-view-direction="forward"]::view-transition-new(root),
+html[data-view-direction="back"]::view-transition-new(root) {
+  z-index: 2;
+  animation-duration: 220ms;
+  animation-timing-function: ease-out;
+}
+
+html[data-view-direction="forward"]::view-transition-old(root) {
+  animation-name: slide-out-left;
+}
+
+html[data-view-direction="forward"]::view-transition-new(root) {
+  animation-name: slide-in-right;
+}
+
+html[data-view-direction="back"]::view-transition-old(root) {
+  animation-name: slide-out-right;
+}
+
+html[data-view-direction="back"]::view-transition-new(root) {
+  animation-name: slide-in-left;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-72px);
+    opacity: 0.6;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-72px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/*
  * prefers-reduced-motion: reduce → ปิด animation ทั้งหมด รวม view transition
  * กติกา: 0ms ทุกอย่าง = เปลี่ยนหน้าทันที ไม่มี transition
  */
@@ -112,6 +213,24 @@ body {
   }
 }
 
+/* ─── iOS Tab Bar ─── */
+/* ไอคอนเด้งตอนถูกเลือก (spring-ish) — ใช้ transform อย่างเดียวตามกติกา motion */
+@keyframes tab-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.tab-icon-active {
+  animation: tab-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /* ─── Category Icon Tokens ─── */
 /* ใช้เป็น background-image ผ่าน tailwind arbitrary value: bg-[var(--icon-food)] */
 /* ไม่ hardcode ใน component — สลับสีได้โดยไม่แก้โค้ด */
@@ -124,4 +243,13 @@ body {
   --color-cat-education: #2563eb;
   --color-cat-bills: #d97706;
   --color-cat-other: #6b7280;
+}
+
+/* เมื่อปฏิทินกางออกเป็น Overlay ซ่อน TabBar และ FAB ล่วงหน้าระดับ CSS เพื่อป้องกันการแวบโผล่ */
+body[data-calendar-expanded="true"] nav[role="tablist"],
+body[data-calendar-expanded="true"] button[aria-label="เพิ่มรายการใหม่"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }

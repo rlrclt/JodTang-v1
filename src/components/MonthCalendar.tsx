@@ -133,16 +133,19 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
     }
   }, [showYearPicker, navYear]);
 
-  // ล็อค Scroll ของหน้าจอฉากหลังเมื่อกางปฏิทิน
+  // ล็อค Scroll ของหน้าจอฉากหลัง และซ่อน TabBar/FAB ไม่ให้โผล่มาแวบหนึ่งขณะเปลี่ยนข้อมูล
   useEffect(() => {
     if (!isExpanded) return;
     const originalOverflow = document.body.style.overflow;
     const originalTouchAction = document.body.style.touchAction;
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
+    document.body.setAttribute("data-calendar-expanded", "true");
+
     return () => {
       document.body.style.overflow = originalOverflow;
       document.body.style.touchAction = originalTouchAction;
+      document.body.removeAttribute("data-calendar-expanded");
     };
   }, [isExpanded]);
 
