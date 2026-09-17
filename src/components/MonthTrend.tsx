@@ -102,13 +102,12 @@ export default function MonthTrendChart({
   const activePoint = activeIdx !== null ? trend[activeIdx] : null;
   const activeNet = activePoint ? activePoint.income - activePoint.expense : 0;
   const activeX = activeIdx !== null ? svgMetrics.incomePoints[activeIdx].x : 0;
-
-  // จัดตำแหน่ง Floating Tooltip ไม่ให้ล้นขอบจอซ้ายหรือขวา
-  const tooltipX = Math.min(Math.max(activeX, 70), svgMetrics.width - 70);
+  // จัดตำแหน่ง Floating Tooltip ไม่ให้ล้นขอบจอซ้ายหรือขวา (เพิ่มความกว้างรองรับทศนิยมเต็ม)
+  const tooltipX = Math.min(Math.max(activeX, 90), svgMetrics.width - 90);
 
   return (
     <div className="space-y-2 select-none">
-      {/* Legend & Guide (ไม่มีการ์ดซ้ำกับ Header) */}
+      {/* Legend & Guide */}
       <div className="flex items-center justify-between px-1 text-xs">
         <span className="text-[11px] font-medium text-text-muted">
           แตะที่จุดบนกราฟเพื่อดูรายรับ-รายจ่าย
@@ -124,7 +123,6 @@ export default function MonthTrendChart({
           </div>
         </div>
       </div>
-
       {/* Apple-style Smooth Area Curve Chart */}
       <div className="relative w-full overflow-hidden rounded-3xl bg-gradient-to-b from-surface-2/40 to-transparent p-1">
         <svg
@@ -242,39 +240,39 @@ export default function MonthTrendChart({
               transform={`translate(${tooltipX}, 28)`}
               className="animate-in zoom-in-95 fade-in duration-200"
             >
-              {/* Tooltip Background Glass Pill */}
+              {/* Tooltip Background Glass Pill (ขยายความกว้างเพื่อโชว์ยอดเงินเต็มพร้อมทศนิยม 2 ตำแหน่ง) */}
               <rect
-                x="-64"
-                y="-22"
-                width="128"
-                height="44"
-                rx="14"
-                className="fill-surface/95 stroke-border/60 stroke"
-                style={{ filter: "drop-shadow(0 6px 14px rgba(0,0,0,0.18))" }}
+                x="-82"
+                y="-26"
+                width="164"
+                height="54"
+                rx="16"
+                className="fill-surface/98 stroke-border/70 stroke"
+                style={{ filter: "drop-shadow(0 8px 20px rgba(0,0,0,0.18))" }}
               />
               {/* Month title inside tooltip */}
               <text
                 x="0"
-                y="-9"
+                y="-12"
                 textAnchor="middle"
-                className="fill-text text-[10px] font-black tracking-tight"
+                className="fill-text text-[11px] font-black tracking-tight"
               >
                 {activePoint.label} ({activePoint.year + 543})
               </text>
-              {/* Income and Expense inside tooltip */}
-              <text x="0" y="5" textAnchor="middle" className="text-[9px] font-bold tabular-nums">
-                <tspan className="fill-income font-black">+{shortBahtLabel(activePoint.income)}</tspan>
-                <tspan className="fill-text-muted opacity-50">  |  </tspan>
-                <tspan className="fill-expense font-black">−{shortBahtLabel(activePoint.expense)}</tspan>
+              {/* Income and Expense with Full Numbers + Decimals */}
+              <text x="0" y="3" textAnchor="middle" className="text-[9.5px] font-bold tabular-nums">
+                <tspan className="fill-income font-extrabold">+{formatSatang(activePoint.income, true)}</tspan>
+                <tspan className="fill-text-muted opacity-40">  •  </tspan>
+                <tspan className="fill-expense font-extrabold">−{formatSatang(activePoint.expense, true)}</tspan>
               </text>
-              {/* Net status inside tooltip */}
+              {/* Net balance status with Full Decimals */}
               <text
                 x="0"
-                y="16"
+                y="18"
                 textAnchor="middle"
-                className={`text-[8px] font-extrabold ${activeNet >= 0 ? "fill-balance" : "fill-expense"}`}
+                className={`text-[9.5px] font-black tabular-nums ${activeNet >= 0 ? "fill-balance" : "fill-expense"}`}
               >
-                {activeNet >= 0 ? "เหลือ +" : "ติดลบ "}{formatSatang(Math.abs(activeNet))}
+                {activeNet >= 0 ? "คงเหลือ +" : "ติดลบ "}{formatSatang(Math.abs(activeNet), true)}
               </text>
             </g>
           )}

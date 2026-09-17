@@ -11,10 +11,24 @@ const thbFormatter = new Intl.NumberFormat("th-TH", {
   style: "currency",
   currency: "THB",
   minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 2,
 });
 
-export function formatSatang(satang: bigint | number): string {
+const thbDecimalFormatter = new Intl.NumberFormat("th-TH", {
+  style: "currency",
+  currency: "THB",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatSatang(
+  satang: bigint | number,
+  showDecimals = false
+): string {
   const baht = typeof satang === "bigint" ? Number(satang) / 100 : satang / 100;
+  // ถ้าระบุ showDecimals = true หรือยอดมีเศษสตางค์ ให้แสดงทศนิยม 2 ตำแหน่งเต็มเสมอ
+  if (showDecimals || baht % 1 !== 0) {
+    return thbDecimalFormatter.format(baht);
+  }
   return thbFormatter.format(baht);
 }
