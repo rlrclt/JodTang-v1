@@ -453,29 +453,44 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
               : "pointer-events-none absolute inset-0 translate-y-3.5 scale-75 opacity-0"
           }`}
         >
-          {/* iOS Horizontal Year Wheel / Slider (เลื่อนปัดเลือกปีได้อิสระ) */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between px-1 mb-1">
-              <span className="text-[10px] font-semibold text-text-muted">เลื่อนเพื่อเลือกปี</span>
-              <span className="text-[11px] font-bold text-focus">พ.ศ. {navYear + BE}</span>
+          {/* iOS Vertical Drum / Wheel Picker (เลื่อนลูกกลิ้งขึ้นลงสไตล์วงล้อนาฬิกา iOS) */}
+          <div className="mb-3 rounded-2xl bg-surface-2/60 p-2 border border-border/40">
+            <div className="flex items-center justify-between px-2 mb-1">
+              <span className="text-[10px] font-semibold text-text-muted">หมุนเลื่อนปี (iOS Wheel)</span>
+              <span className="text-[11px] font-extrabold text-focus">
+                {new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { year: "numeric" }).format(new Date(navYear, 0, 1))}
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 px-1 scrollbar-hide snap-x snap-mandatory">
-              {Array.from({ length: 11 }, (_, i) => {
-                const y = today.year - 5 + i;
+
+            {/* 3D Cylindrical Vertical Wheel Container */}
+            <div
+              className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
+              tabIndex={0}
+              aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
+            >
+              {/* Selection Indicator Bars (เส้นไฮไลต์เลนส์ตรงกลางแบบ iOS) */}
+              <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/10 border-y border-focus/25 backdrop-blur-xs" />
+
+              {/* รายการปี สร้างไดนามิกอิงจากปีสากลปัจจุบัน (Intl) ถอยหลัง-เดินหน้า 50 ปี */}
+              {Array.from({ length: 41 }, (_, i) => {
+                const y = today.year - 20 + i;
                 const isSelected = y === navYear;
+                const thaiYearText = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+                  year: "numeric",
+                }).format(new Date(y, 0, 1));
+
                 return (
-                  <button
+                  <div
                     key={y}
-                    type="button"
                     onClick={() => setNavYear(y)}
-                    className={`shrink-0 snap-center rounded-full px-3.5 py-1 text-xs font-bold transition-all active:scale-90 ${
+                    className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-200 ${
                       isSelected
-                        ? "bg-focus text-white shadow-md shadow-focus/25 scale-105"
-                        : "bg-surface-2/80 text-text-muted hover:text-text hover:bg-surface-2"
+                        ? "scale-110 text-sm font-extrabold text-focus"
+                        : "scale-90 text-xs font-semibold text-text-muted opacity-45 hover:opacity-80"
                     }`}
                   >
-                    {y + BE}
-                  </button>
+                    {thaiYearText} ({y})
+                  </div>
                 );
               })}
             </div>
