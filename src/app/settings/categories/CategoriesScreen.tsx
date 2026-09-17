@@ -258,6 +258,7 @@ export default function CategoriesScreen(props: {
           <h1 className="text-lg font-semibold">หมวดหมู่</h1>
           <SmoothLink
             href="/settings"
+            direction="back"
             className="flex min-h-[44px] items-center text-sm text-text-muted"
           >
             กลับ
@@ -387,6 +388,23 @@ export default function CategoriesScreen(props: {
 
 // ─────────────────────── component ย่อย ───────────────────────
 
+const DEFAULT_CATEGORY_NAMES = new Set([
+  "เงินเดือน",
+  "รายได้เสริม",
+  "โบนัส",
+  "ดอกเบี้ย",
+  "อาหาร",
+  "เดินทาง",
+  "ช้อปปิ้ง",
+  "ที่อยู่อาศัย",
+  "สุขภาพ",
+  "การศึกษา",
+  "บันเทิง",
+  "ของใช้ส่วนตัว",
+  "บิลและสาธารณูปโภค",
+  "อื่น ๆ",
+]);
+
 function KindSection({
   title,
   rows,
@@ -402,31 +420,47 @@ function KindSection({
 
   return (
     <section className="px-4 pt-4">
-      <h2 className="mb-2 text-sm font-medium text-text-muted">{title}</h2>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-text-muted">{title}</h2>
+        <span className="text-[11px] text-text-muted opacity-80">
+          {rows.filter((r) => !DEFAULT_CATEGORY_NAMES.has(r.name)).length > 0
+            ? `${rows.length} หมวด (มีหมวดที่คุณสร้างเอง)`
+            : `${rows.length} หมวด`}
+        </span>
+      </div>
       <ul className="overflow-hidden rounded-[var(--radius-card)] border border-border">
-        {rows.map((row) => (
-          <li
-            key={row.id}
-            className="flex items-center gap-3 border-b border-border bg-surface px-3 py-2 last:border-b-0"
-          >
-            <CategoryAvatar icon={row.icon} />
-            <button
-              type="button"
-              onClick={() => onEdit(row)}
-              className="min-h-[44px] min-w-0 flex-1 truncate text-left text-base"
+        {rows.map((row) => {
+          const isCustom = !DEFAULT_CATEGORY_NAMES.has(row.name);
+          return (
+            <li
+              key={row.id}
+              className="flex items-center gap-3 border-b border-border bg-surface px-3 py-2 last:border-b-0 transition-colors hover:bg-surface-2/60"
             >
-              {row.name}
-            </button>
-            <button
-              type="button"
-              onClick={() => onArchive(row)}
-              aria-label={`ซ่อนหมวด ${row.name}`}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center text-text-muted"
-            >
-              <ArchiveGlyph />
-            </button>
-          </li>
-        ))}
+              <CategoryAvatar icon={row.icon} />
+              <button
+                type="button"
+                onClick={() => onEdit(row)}
+                className="min-h-[44px] min-w-0 flex-1 flex items-center gap-2 truncate text-left text-base group"
+              >
+                <span className="truncate font-medium text-text group-hover:text-focus">{row.name}</span>
+                {isCustom && (
+                  <span className="shrink-0 rounded-md bg-focus/10 px-1.5 py-0.5 text-[10px] font-bold text-focus">
+                    สร้างเอง
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => onArchive(row)}
+                aria-label={`ซ่อนหมวด ${row.name}`}
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center text-text-muted hover:text-expense transition-colors"
+                title="ซ่อนหมวดหมู่นี้"
+              >
+                <ArchiveGlyph />
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
