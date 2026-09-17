@@ -434,26 +434,34 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
                   aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
                 >
                   <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/15 border-y border-focus/30" />
-                  {Array.from({ length: 41 }, (_, i) => {
-                    const y = today.year - 20 + i;
-                    const isSelected = y === navYear;
-                    const thaiYear = yearFormatter.format(new Date(y, 0, 1));
+                  {/* ขอบเขตปีสำหรับบันทึกรายรับรายจ่าย: ย้อนหลัง 10 ปี ถึง ล่วงหน้า 1 ปี (ไม่เปิดกว้างมั่วแบบ 40-100 ปี) */}
+                  {(() => {
+                    const pastYears = 10;
+                    const futureYears = 1;
+                    const startYear = today.year - pastYears;
+                    const totalYears = pastYears + futureYears + 1;
 
-                    return (
-                      <div
-                        key={y}
-                        data-year={y}
-                        onClick={() => setNavYear(y)}
-                        className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
-                          isSelected
-                            ? "scale-110 text-sm font-extrabold text-focus"
-                            : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
-                        }`}
-                      >
-                        {thaiYear} ({y})
-                      </div>
-                    );
-                  })}
+                    return Array.from({ length: totalYears }, (_, i) => {
+                      const y = startYear + i;
+                      const isSelected = y === navYear;
+                      const thaiYear = yearFormatter.format(new Date(y, 0, 1));
+
+                      return (
+                        <div
+                          key={y}
+                          data-year={y}
+                          onClick={() => setNavYear(y)}
+                          className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
+                            isSelected
+                              ? "scale-110 text-sm font-extrabold text-focus"
+                              : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
+                          }`}
+                        >
+                          {thaiYear} ({y})
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}
