@@ -17,6 +17,7 @@ import type {
 import ExpenseBarChart from "@/components/ExpenseBarChart";
 import MonthTrendChart from "@/components/MonthTrend";
 import BudgetProgressSection from "@/components/BudgetProgress";
+import AiAnalysisCard from "@/components/AiAnalysisCard";
 
 type Props = {
   expenses: CategorySummary[];
@@ -101,6 +102,14 @@ export default function SummaryContent(props: Props) {
           </p>
         </div>
       </div>
+      {/* AI วิเคราะห์รายจ่าย */}
+      <AiAnalysisCard
+        year={selectedYear}
+        month={selectedMonth}
+        monthLabel={monthLabel}
+        hasData={hasData}
+      />
+
 
       {/* กราฟแท่งรายจ่ายตามหมวด */}
       <div className="mb-4">

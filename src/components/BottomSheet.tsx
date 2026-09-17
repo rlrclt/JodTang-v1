@@ -56,6 +56,58 @@ function getOccurrenceDate(dayOffset: number): string {
   return `${y}-${m}-${d}T00:00:00+07:00`;
 }
 
+/** เดาหมวดหมู่อัตโนมัติจาก Note ที่พิมพ์ */
+function guessCategory(
+  text: string,
+  categories: { id: string; name: string }[]
+): string | null {
+  const lower = text.trim().toLowerCase();
+  if (!lower) return null;
+
+  const direct = categories.find((c) => lower.includes(c.name.toLowerCase()));
+  if (direct) return direct.id;
+
+  const KEYWORD_MAP: Record<string, string[]> = {
+    อาหาร: [
+      "ข้าว", "ก๋วยเตี๋ยว", "อาหาร", "กิน", "ส้มตำ", "ชา", "กาแฟ", "cafe",
+      "dinner", "lunch", "breakfast", "ขนม", "น้ำดื่ม", "บุฟเฟต์", "หมูกระทะ",
+      "starbucks", "kfc", "mcdonald", "7-eleven", "เซเว่น",
+    ],
+    เดินทาง: [
+      "bts", "mrt", "รถ", "แท็กซี่", "grab", "bolt", "วิน", "น้ำมัน",
+      "ทางด่วน", "ตั๋ว", "เครื่องบิน", "รถเมล์", "ที่จอด", "gas",
+    ],
+    ช้อปปิ้ง: [
+      "ซื้อ", "ช้อป", "เสื้อ", "กางเกง", "รองเท้า", "shopee", "lazada",
+      "tiktok", "uniqlo", "zara", "ห้าง",
+    ],
+    ของใช้ส่วนตัว: [
+      "สบู่", "ยาสระผม", "ครีม", "ยา", "หมอ", "ตัดผม", "เครื่องสำอาง",
+    ],
+    บิลและสาธารณูปโภค: [
+      "ค่าไฟ", "ค่าน้ำ", "เน็ต", "ค่าห้อง", "ค่าเช่า", "บิล", "โทรศัพท์",
+      "ais", "true", "dtac", "การไฟฟ้า", "การประปา",
+    ],
+    บันเทิง: [
+      "หนัง", "เกม", "netflix", "spotify", "youtube", "คอนเสิร์ต", "เที่ยว",
+      "ตั๋วหนัง", "steam",
+    ],
+    การศึกษา: ["หนังสือ", "คอร์ส", "เรียน", "อบรม", "ติว", "เครื่องเขียน"],
+    สุขภาพ: ["ฟิตเนส", "ยา", "โรงพยาบาล", "วิตามิน", "ตรวจสุขภาพ", "คลินิก"],
+    เงินเดือน: ["เงินเดือน", "salary", "โบนัส", "bonus", "ot"],
+    รายได้เสริม: ["ขายของ", "ฟรีแลนซ์", "freelance", "งานนอก", "ปันผล", "กำไร"],
+  };
+
+  for (const [catName, keywords] of Object.entries(KEYWORD_MAP)) {
+    if (keywords.some((kw) => lower.includes(kw))) {
+      const match = categories.find((c) => c.name.includes(catName));
+      if (match) return match.id;
+    }
+  }
+
+  return null;
+}
+
 export default function BottomSheet({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabKind>("expense");
   const [amount, setAmount] = useState("");
@@ -450,7 +502,14 @@ export default function BottomSheet({ onClose }: Props) {
               type="text"
               placeholder="หมายเหตุ (ไม่บังคับ)"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setNote(val);
+                if (!categoryId && categories.length > 0) {
+                  const guessed = guessCategory(val, categories);
+                  if (guessed) setCategoryId(guessed);
+                }
+              }}
               className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text placeholder:text-text-muted focus:border-focus focus:outline-none"
             />
           </div>

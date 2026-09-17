@@ -122,18 +122,26 @@ export default function HomePage() {
           </div>
           <ul className="grid gap-2">
             {accountBalances.map((account) => (
-              <li
-                key={account.id}
-                className="flex items-center justify-between rounded-xl bg-surface px-4 py-3"
-              >
-                <span className="truncate text-sm font-medium">{account.name}</span>
-                <span
-                  className={`ml-3 flex-shrink-0 text-sm font-semibold tabular-nums ${
-                    account.balance < 0 ? "text-expense" : "text-balance"
-                  }`}
+              <li key={account.id}>
+                <SmoothLink
+                  href={`/transactions?account_id=${account.id}`}
+                  className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 transition-colors hover:bg-surface-2/60 active:bg-surface-2"
                 >
-                  {formatSatang(account.balance)}
-                </span>
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="text-base">💰</span>
+                    <span className="truncate text-sm font-medium">{account.name}</span>
+                  </div>
+                  <div className="ml-3 flex items-center gap-1.5 flex-shrink-0">
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${
+                        account.balance < 0 ? "text-expense" : "text-balance"
+                      }`}
+                    >
+                      {formatSatang(account.balance)}
+                    </span>
+                    <span className="text-xs text-text-muted">›</span>
+                  </div>
+                </SmoothLink>
               </li>
             ))}
           </ul>
