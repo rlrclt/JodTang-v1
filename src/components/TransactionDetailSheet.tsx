@@ -200,14 +200,13 @@ export default function TransactionDetailSheet({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 pointer-events-auto flex items-end justify-center"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 transition-opacity duration-200" />
+    <div className="fixed inset-0 z-50 pointer-events-auto flex items-end justify-center">
+      {/* Backdrop — กดพื้นที่นอก sheet เพื่อปิด */}
+      <div
+        className="absolute inset-0 bg-black/40 transition-opacity duration-200"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       {/* Sheet Modal */}
       <div
@@ -240,7 +239,10 @@ export default function TransactionDetailSheet({
         {/* Scrollable Form Content */}
         <div
           className="overflow-y-auto px-4 py-4 space-y-4"
-          style={{ maxHeight: "calc(100dvh - 160px)" }}
+          style={{
+            maxHeight: "calc(100dvh - 160px)",
+            paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
+          }}
         >
           {error && (
             <div className="rounded-xl bg-expense/10 p-3 text-xs text-expense">

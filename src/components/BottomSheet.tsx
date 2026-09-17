@@ -306,8 +306,13 @@ export default function BottomSheet({ onClose }: Props) {
         <div className="flex justify-center pt-3 pb-2">
           <div className="h-1 w-10 rounded-full bg-surface-2" />
         </div>
-
-        <div className="overflow-y-auto px-4 pb-4" style={{ maxHeight: "calc(100dvh - 120px)" }}>
+        <div
+          className="overflow-y-auto px-4"
+          style={{
+            maxHeight: "calc(100dvh - 120px)",
+            paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
+          }}
+        >
           {/* Tabs */}
           <div className="mb-4 flex gap-1 rounded-xl bg-surface p-1">
             {TABS.map((tab) => (
