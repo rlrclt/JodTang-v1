@@ -16,10 +16,11 @@ export default function TabBar() {
   return (
     <nav
       role="tablist"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border"
+      aria-label="แถบนำทางหลัก"
+      className="fixed bottom-0 left-4 right-4 z-50 mx-auto max-w-md rounded-full border border-white/25 dark:border-white/10 bg-white/15 dark:bg-black/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-2xl saturate-180 transition-all"
       style={{
-        height: "56px",
-        paddingBottom: "env(safe-area-inset-bottom)",
+        height: "60px",
+        bottom: "calc(env(safe-area-inset-bottom) + 12px)",
       }}
     >
       <ul className="flex h-full items-center justify-around list-none m-0 p-0">
@@ -35,11 +36,28 @@ export default function TabBar() {
                 href={tab.href}
                 role="tab"
                 aria-selected={isActive}
-                className={`flex flex-col items-center justify-center h-full text-xs gap-0.5 transition-colors duration-120 ${
+                onClick={() => {
+                  // แตะแท็บที่อยู่แล้ว = เลื่อนขึ้นบนสุด (ธรรมเนียม iOS)
+                  if (isActive) {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    return;
+                  }
+                  // สั่นเบาๆ ตอนเปลี่ยนแท็บ (Android เท่านั้น — iOS ไม่มี API ให้)
+                  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+                    navigator.vibrate(8);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center h-full text-xs gap-0.5 transition-colors duration-120 active:scale-95 ${
                   isActive ? "text-focus font-semibold" : "text-text-muted"
                 }`}
               >
-                <TabIcon icon={tab.icon} active={isActive} />
+                <span
+                  key={`${tab.href}${isActive ? "-on" : ""}`}
+                  // iOS แท้ไม่มีป้ายรองหลัง — ใช้สี tint + เด้งอย่างเดียว
+                  className={isActive ? "tab-icon-active" : undefined}
+                >
+                  <TabIcon icon={tab.icon} active={isActive} />
+                </span>
                 <span>{tab.label}</span>
               </SmoothLink>
             </li>
