@@ -55,11 +55,54 @@ export async function POST(req: NextRequest) {
   }
   const supabase = getSupabaseAdmin();
 
+  // ลิงก์ LIFF สำหรับเชื่อมบัญชี (public ID — ไม่ใช่ secret)
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
+  const linkButtonMessage = liffUrl
+    ? [
+        {
+          type: "template",
+          altText: "กดเชื่อมต่อบัญชี JodTang",
+          template: {
+            type: "buttons",
+            text: "เชื่อมต่อบัญชี JodTang เพื่อเริ่มส่งสลิป",
+            actions: [{ type: "uri", label: "เชื่อมต่อบัญชี", uri: liffUrl }],
+          },
+        },
+      ]
+    : [];
+
   // 2. ประมวลผลแต่ละ Event
   for (const event of events) {
-    if (event.type !== "message") continue;
     const lineUserId = event.source.userId;
     if (!lineUserId) continue;
+
+    // ── follow: เพิ่มบอทเป็นเพื่อน → ต้อนรับ + ปุ่มเชื่อมบัญชี ──
+    if (event.type === "follow") {
+      await replyLineMessage(
+        event.replyToken,
+        [
+          {
+            type: "text",
+            text: `👋 สวัสดีครับ! ยินดีต้อนรับสู่ JodTang\n\nกดปุ่มด้านล่างเพื่อเชื่อมต่อบัญชี แล้วส่งรูปสลิปมาให้ AI ลงบัญชีอัตโนมัติได้ทันทีครับ ✨`,
+          },
+          ...linkButtonMessage,
+        ],
+        channelAccessToken
+      );
+      continue;
+    }
+
+    // ── unfollow: บล็อกบอท → ล้าง line_user_id (ตอบกลับไม่ได้ ไม่มี reply) ──
+    if (event.type === "unfollow") {
+      await supabase
+        .from("profiles")
+        .update({ line_user_id: null })
+        .eq("line_user_id", lineUserId);
+      continue;
+    }
+
+    if (event.type !== "message") continue;
 
     // หาผู้ใช้ใน JodTang จาก line_user_id
     const { data: profile } = await supabase
@@ -115,15 +158,16 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // ถ้ายังไม่ได้ผูกบัญชี
+      // ถ้ายังไม่ได้ผูกบัญชี → ชวนกดปุ่ม LIFF (เหลือพิมพ์ LINK: ไว้เป็นทางสำรอง)
       if (!profile) {
         await replyLineMessage(
           event.replyToken,
           [
             {
               type: "text",
-              text: `👋 สวัสดีครับ! กรุณาเชื่อมต่อบัญชี JodTang ก่อนใช้งาน โดยพิมพ์:\n\nLINK:อีเมลของคุณ\n\n(เช่น LINK:user@gmail.com)`,
+              text: `👋 สวัสดีครับ! กรุณาเชื่อมต่อบัญชี JodTang ก่อนใช้งาน โดยกดปุ่มด้านล่างครับ`,
             },
+            ...linkButtonMessage,
           ],
           channelAccessToken
         );
@@ -152,8 +196,9 @@ export async function POST(req: NextRequest) {
           [
             {
               type: "text",
-              text: `⚠️ กรุณาเชื่อมต่อบัญชี JodTang ก่อนส่งสลิปครับ โดยพิมพ์:\nLINK:อีเมลของคุณ`,
+              text: `⚠️ กรุณาเชื่อมต่อบัญชี JodTang ก่อนส่งสลิปครับ โดยกดปุ่มด้านล่าง`,
             },
+            ...linkButtonMessage,
           ],
           channelAccessToken
         );

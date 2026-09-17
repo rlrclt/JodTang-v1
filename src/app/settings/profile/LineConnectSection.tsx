@@ -8,30 +8,17 @@ type Props = {
   email: string;
   name: string;
   lineUserId: string | null;
-  lineConnected?: boolean;
-  lineError?: string | null;
 };
 
-const LINE_ERROR_MESSAGES: Record<string, string> = {
-  cancelled: "คุณยกเลิกการล็อกอิน LINE กลางคัน ลองกดเชื่อมต่อใหม่อีกครั้งครับ",
-  missing_params: "LINE ส่งข้อมูลกลับมาไม่ครบ (code/state หาย) ลองใหม่อีกครั้งครับ",
-  invalid_state: "เซสชันหมดอายุหรือไม่ตรงกัน (เปิดทิ้งไว้นานเกิน 5 นาที หรือ cookie ถูกบล็อก) ลองกดเชื่อมต่อใหม่อีกครั้งครับ",
-  no_session: "ไม่พบเซสชันผู้ใช้ตอนกลับจาก LINE กรุณาล็อกอินเว็บใหม่แล้วลองอีกครั้งครับ",
-  missing_line_config: "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า LINE_LOGIN_CHANNEL_ID / SECRET ติดต่อแอดมินเพื่อตั้งค่า env ครับ",
-  missing_supabase_config: "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า Supabase ฝั่ง server ติดต่อแอดมินครับ",
-  token_failed: "แลก code เป็น token กับ LINE ไม่สำเร็จ ตรวจ Channel secret / Callback URL ใน LINE Console ครับ",
-  no_access_token: "LINE ไม่ได้ส่ง access_token กลับมา ลองใหม่อีกครั้งครับ",
-  profile_failed: "ดึงโปรไฟล์ LINE ไม่สำเร็จ ลองใหม่อีกครั้งครับ",
-  no_line_user_id: "LINE ไม่ได้ส่ง userId กลับมา ลองใหม่อีกครั้งครับ",
-  update_failed: "บันทึก line_user_id ลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้งครับ",
-  internal: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ ลองใหม่อีกครั้งครับ",
-};
-
-export default function LineConnectSection({ email, name, lineUserId, lineConnected, lineError }: Props) {
+export default function LineConnectSection({ email, name, lineUserId }: Props) {
   const [unlinking, setUnlinking] = useState(false);
   const router = useRouter();
 
   const isConnected = Boolean(lineUserId);
+
+  // LIFF URL (public ID — ไม่ใช่ secret) ถ้ายังไม่ตั้งให้ชวนแอดมินตั้งค่า
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
 
   const handleUnlink = async () => {
     if (!confirm("ต้องการยกเลิกการเชื่อมต่อกับ LINE Bot ใช่หรือไม่?")) return;
@@ -46,17 +33,6 @@ export default function LineConnectSection({ email, name, lineUserId, lineConnec
 
   return (
     <section className="mt-4 rounded-3xl border border-emerald-500/20 bg-surface/95 p-5 shadow-sm backdrop-blur-xl transition-all select-none">
-      {/* แบนเนอร์ผลลัพธ์จาก /api/line/connect/callback — เดิม query ถูกเมินจนดูเหมือนกดแล้วเงียบ */}
-      {lineConnected ? (
-        <p role="status" className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-700">
-          🎉 เชื่อมต่อ LINE สำเร็จแล้ว! บอทจะส่งข้อความยืนยันในแชท LINE ทันทีครับ
-        </p>
-      ) : null}
-      {lineError ? (
-        <p role="alert" className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs font-bold text-red-700">
-          ❌ เชื่อมต่อ LINE ไม่สำเร็จ ({lineError}): {LINE_ERROR_MESSAGES[lineError] ?? "ลองใหม่อีกครั้งครับ"}
-        </p>
-      ) : null}
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-3">
         <div className="flex items-center gap-2">
@@ -121,21 +97,29 @@ export default function LineConnectSection({ email, name, lineUserId, lineConnec
             </p>
           </div>
 
-          {/* ปุ่มเชื่อมต่อ LINE — redirect ไป LINE Login OAuth โดยตรง */}
+          {/* ปุ่มเชื่อมต่อ LINE — เปิด LIFF ในแอป LINE (ไม่ใช้ OAuth) */}
           <div className="pt-1">
-            <a
-              href="/api/line/connect"
-              className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
-            >
+            {liffUrl ? (
+              <a
+                href={liffUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
+              >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
               </svg>
               <span>เชื่อมต่อบัญชี LINE</span>
-            </a>
+              </a>
+            ) : (
+              <p role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold text-amber-700">
+                ⚠️ ยังไม่ได้ตั้งค่า NEXT_PUBLIC_LIFF_ID บนเซิร์ฟเวอร์ ติดต่อแอดมินครับ
+              </p>
+            )}
           </div>
 
           <p className="text-[10px] text-text-muted leading-normal">
-            💡 กดปุ่ม → ล็อกอิน LINE → เชื่อมต่อเสร็จ! บอทจะส่งข้อความยืนยันในแชท LINE ทันทีครับ
+            💡 กดปุ่ม → เปิดในแอป LINE → กลับมาหน้าเว็บกดยืนยัน 1 คลิก บอทจะส่งข้อความยืนยันในแชททันทีครับ
           </p>
         </div>
       )}

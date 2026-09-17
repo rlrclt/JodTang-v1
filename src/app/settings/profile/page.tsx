@@ -5,15 +5,7 @@ import LineConnectSection from "./LineConnectSection";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const params = searchParams ? await searchParams : {};
-  const lineConnected = params["line_connected"] === "1";
-  const lineErrorRaw = params["line_error"];
-  const lineError = Array.isArray(lineErrorRaw) ? lineErrorRaw[0] : lineErrorRaw;
+export default async function ProfilePage() {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   const user = authData.user;
@@ -86,8 +78,6 @@ export default async function ProfilePage({
           email={user.email || ""}
           name={profile?.full_name || user.email?.split("@")[0] || "ผู้ใช้งาน"}
           lineUserId={profile?.line_user_id || null}
-          lineConnected={lineConnected}
-          lineError={lineError ?? null}
         />
         <ResetDataSection />
       </main>

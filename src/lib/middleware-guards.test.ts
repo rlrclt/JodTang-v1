@@ -17,6 +17,12 @@ describe("isPublicPath", () => {
     assert.equal(isPublicPath("/auth/signin"), true);
   });
 
+  it("returns true for /line/link and /line/claim (LIFF flow)", async () => {
+    const { isPublicPath } = await import("./middleware-guards.ts");
+    assert.equal(isPublicPath("/line/link"), true);
+    assert.equal(isPublicPath("/line/claim"), true);
+  });
+
   it("returns true for /offline (PWA offline page)", async () => {
     const { isPublicPath } = await import("./middleware-guards.ts");
     assert.equal(isPublicPath("/offline"), true);
