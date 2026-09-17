@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
   if (!validateSessionResult({ data, error })) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
