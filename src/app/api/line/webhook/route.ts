@@ -3,12 +3,14 @@ import {
   verifyLineSignature,
   downloadLineImage,
   replyLineMessage,
+  showLineLoadingAnimation,
   type LineEvent,
 } from "@/lib/line/line-messaging";
-import { parseSlipImageWithGemini } from "@/lib/ai/slip-parser";
 import { createClient } from "@supabase/supabase-js";
 import { formatSatang } from "@/lib/format-satang";
 import { processLineUserMessage } from "@/lib/line/line-ai";
+import { parseSlipImageWithGemini } from "@/lib/ai/slip-parser";
+
 // ใช้ Supabase Service Client สำหรับ Webhook เพื่อบันทึกข้อมูลแทนผู้ใช้
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -175,8 +177,18 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // ประมวลผลข้อความ: จดบันทึก / แก้ไข / ตอบคำถาม (Token Optimized)
-      const aiAnswer = await processLineUserMessage(profile.id, text);
+      // 1) แสดงสถานะ "กำลังคิด / กำลังพิมพ์..." ให้ผู้ใช้เห็นในแชททันที
+      void showLineLoadingAnimation(lineUserId, channelAccessToken, 20);
+
+      // 2) ประมวลผลข้อความ: จดบันทึก / แก้ไข / ตอบคำถาม
+      let aiAnswer = "";
+      try {
+        aiAnswer = await processLineUserMessage(profile.id, text);
+      } catch (err: any) {
+        console.error("AI text processing error:", err);
+        aiAnswer = `⚠️ ระบบ AI ขัดข้องชั่วคราว: ${err.message || "ไม่สามารถติดต่อ AI ได้"} กรุณาลองใหม่อีกครั้งครับ`;
+      }
+
       await replyLineMessage(
         event.replyToken,
         [
@@ -206,6 +218,9 @@ export async function POST(req: NextRequest) {
         );
         continue;
       }
+
+      // แสดงสถานะ "กำลังอ่านสลิป..." ให้ผู้ใช้เห็นในแชททันที
+      void showLineLoadingAnimation(lineUserId, channelAccessToken, 30);
 
       // 1) ดาวน์โหลดรูปภาพจาก LINE
       const imgRes = await downloadLineImage(event.message.id, channelAccessToken);
