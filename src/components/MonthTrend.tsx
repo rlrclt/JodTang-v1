@@ -4,11 +4,8 @@ import { useMemo, useState } from "react";
 import type { MonthTrend as MonthTrendType } from "@/lib/summary-helpers";
 import { formatSatang } from "@/lib/format-satang";
 
-type RangeOption = 3 | 6 | 12;
-type ChartStyle = "bar" | "line";
-
 function shortBahtLabel(satang: number): string {
-  if (satang <= 0) return "";
+  if (satang <= 0) return "0";
   const b = satang / 100;
   if (b >= 1000000) return (b / 1000000).toFixed(1) + "M";
   if (b >= 1000) return Math.round(b / 1000) + "k";
@@ -20,47 +17,42 @@ export default function MonthTrendChart({
 }: {
   trend: MonthTrendType[];
 }) {
-  const [range, setRange] = useState<RangeOption>(6);
-  const [chartStyle, setChartStyle] = useState<ChartStyle>("bar");
+  // ดัชนีเดือนที่ถูกเลือก/แตะอยู่ (default เป็นเดือนล่าสุด)
+  const [selectedIndex, setSelectedIndex] = useState<number>(trend.length - 1);
 
-  // ตัดข้อมูลตามช่วงเดือนที่ผู้ใช้เลือก (3, 6 หรือ 12 เดือน)
-  const displayTrend = useMemo(() => {
-    if (range === 3) return trend.slice(-3);
-    if (range === 6) return trend.slice(-6);
-    return trend; // 12 เดือน
-  }, [trend, range]);
-
-  const hasData = displayTrend.some((m) => m.income > 0 || m.expense > 0);
+  const hasData = trend.some((m) => m.income > 0 || m.expense > 0);
 
   const maxValue = useMemo(() => {
-    return Math.max(...displayTrend.map((m) => Math.max(m.income, m.expense)), 0);
-  }, [displayTrend]);
+    return Math.max(...trend.map((m) => Math.max(m.income, m.expense)), 1);
+  }, [trend]);
 
-  // คำนวณพิกัด SVG สำหรับ Smooth Area/Line Curve
+  const selectedMonth = trend[selectedIndex] || trend[trend.length - 1];
+
+  // คำนวณพิกัด SVG สำหรับ Smooth Area/Line Curve สไตล์ Apple Health / Wallet
   const svgMetrics = useMemo(() => {
-    if (displayTrend.length < 2 || maxValue <= 0) return null;
+    if (trend.length < 2 || maxValue <= 0) return null;
     const width = 360;
-    const height = 120;
-    const paddingX = 24;
-    const paddingTop = 16;
-    const paddingBottom = 16;
+    const height = 140;
+    const paddingX = 20;
+    const paddingTop = 20;
+    const paddingBottom = 24;
     const plotHeight = height - paddingTop - paddingBottom;
     const plotWidth = width - paddingX * 2;
-    const step = plotWidth / (displayTrend.length - 1);
+    const step = plotWidth / (trend.length - 1);
 
-    const incomePoints = displayTrend.map((m, i) => {
+    const incomePoints = trend.map((m, i) => {
       const x = paddingX + i * step;
       const y = paddingTop + plotHeight - (m.income / maxValue) * plotHeight;
-      return { x, y, val: m.income };
+      return { x, y, val: m.income, data: m, index: i };
     });
 
-    const expensePoints = displayTrend.map((m, i) => {
+    const expensePoints = trend.map((m, i) => {
       const x = paddingX + i * step;
       const y = paddingTop + plotHeight - (m.expense / maxValue) * plotHeight;
-      return { x, y, val: m.expense };
+      return { x, y, val: m.expense, data: m, index: i };
     });
 
-    // Helper สร้าง Catmull-Rom หรือ Bezier Smooth Path
+    // Helper สร้าง Bezier Smooth Path
     const makeSmoothPath = (pts: { x: number; y: number }[]) => {
       if (pts.length === 0) return "";
       let d = `M ${pts[0].x},${pts[0].y}`;
@@ -97,232 +89,225 @@ export default function MonthTrendChart({
       expenseLine,
       incomeArea,
       expenseArea,
+      bottomY,
     };
-  }, [displayTrend, maxValue]);
+  }, [trend, maxValue]);
+
+  if (!hasData || !svgMetrics) {
+    return (
+      <div className="py-8 text-center text-xs text-text-muted rounded-2xl bg-surface-2/40 border border-dashed border-border/50">
+        ยังไม่มีข้อมูลสถิติแนวโน้ม
+      </div>
+    );
+  }
+
+  const selectedNet = (selectedMonth.income || 0) - (selectedMonth.expense || 0);
 
   return (
-    <div className="space-y-3">
-      {/* Controls Bar: Type (Bar / Curve) + Range (3/6/12) */}
-      <div className="flex items-center justify-between gap-2">
-        {/* สลับรูปแบบ: แท่งมนโค้ง vs กราฟเส้นสมูท */}
-        <div className="flex items-center rounded-full bg-surface-2/80 p-0.5 border border-border/40">
-          <button
-            type="button"
-            onClick={() => setChartStyle("bar")}
-            className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-all active:scale-95 ${
-              chartStyle === "bar"
-                ? "bg-focus text-white shadow-xs"
-                : "text-text-muted hover:text-text"
-            }`}
-          >
-            <span>📊 แท่ง</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setChartStyle("line")}
-            className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-all active:scale-95 ${
-              chartStyle === "line"
-                ? "bg-focus text-white shadow-xs"
-                : "text-text-muted hover:text-text"
-            }`}
-          >
-            <span>📈 เส้นสมูท</span>
-          </button>
+    <div className="space-y-3 select-none">
+      {/* 1. Interactive Detailed Inspection Card (การ์ดแสดงรายละเอียดเมื่อแตะจุดบนกราฟ) */}
+      <div className="flex items-center justify-between rounded-2xl border border-white/20 bg-surface-2/80 p-3 shadow-sm backdrop-blur-md transition-all">
+        <div>
+          <span className="text-[10px] font-semibold text-text-muted">เดือนที่เลือก</span>
+          <h4 className="text-sm font-extrabold text-text tracking-tight">
+            {selectedMonth.label} พ.ศ. {selectedMonth.year + 543}
+          </h4>
         </div>
 
-        {/* สลับช่วงเดือน (3, 6, 12 เดือน) */}
-        <div className="flex items-center rounded-full bg-surface-2/80 p-0.5 border border-border/40">
-          {([3, 6, 12] as const).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRange(r)}
-              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-all active:scale-95 ${
-                range === r
-                  ? "bg-focus text-white shadow-xs"
-                  : "text-text-muted hover:text-text"
+        <div className="flex items-center gap-4 text-right">
+          <div>
+            <span className="block text-[9px] font-medium text-text-muted">รายรับ</span>
+            <span className="text-xs font-bold text-income tabular-nums">
+              +{formatSatang(selectedMonth.income)}
+            </span>
+          </div>
+          <div>
+            <span className="block text-[9px] font-medium text-text-muted">รายจ่าย</span>
+            <span className="text-xs font-bold text-expense tabular-nums">
+              −{formatSatang(selectedMonth.expense)}
+            </span>
+          </div>
+          <div className="border-l border-border/50 pl-3">
+            <span className="block text-[9px] font-medium text-text-muted">คงเหลือ</span>
+            <span
+              className={`text-xs font-black tabular-nums ${
+                selectedNet >= 0 ? "text-balance" : "text-expense"
               }`}
             >
-              {r} เดือน
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center justify-end gap-3 text-xs pr-1">
-        <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-income" />
-          <span className="text-[11px] font-medium text-text-muted">รายรับ</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-2 w-2 rounded-full bg-expense" />
-          <span className="text-[11px] font-medium text-text-muted">รายจ่าย</span>
-        </div>
-      </div>
-
-      {!hasData ? (
-        <div className="py-8 text-center text-xs text-text-muted rounded-2xl bg-surface-2/40 border border-dashed border-border/50">
-          ยังไม่มีข้อมูลธุรกรรมในช่วง {range} เดือนนี้
-        </div>
-      ) : chartStyle === "line" && svgMetrics ? (
-        /* 1. Smooth Area & Curve Chart สไตล์ Apple Wallet / Revolut */
-        <div className="space-y-1 pt-1">
-          <div className="relative w-full overflow-hidden rounded-2xl bg-surface-2/30 p-1">
-            <svg
-              viewBox={`0 0 ${svgMetrics.width} ${svgMetrics.height}`}
-              className="w-full h-36 overflow-visible"
-            >
-              <defs>
-                <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-income, #16a34a)" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="var(--color-income, #16a34a)" stopOpacity="0.0" />
-                </linearGradient>
-                <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-expense, #dc2626)" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="var(--color-expense, #dc2626)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              {/* Area Shading */}
-              <path d={svgMetrics.incomeArea} fill="url(#incomeGradient)" />
-              <path d={svgMetrics.expenseArea} fill="url(#expenseGradient)" />
-
-              {/* Smooth Curves */}
-              <path
-                d={svgMetrics.incomeLine}
-                fill="none"
-                stroke="var(--color-income, #16a34a)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d={svgMetrics.expenseLine}
-                fill="none"
-                stroke="var(--color-expense, #dc2626)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Points & Numeric Labels */}
-              {svgMetrics.incomePoints.map((pt, idx) => (
-                <g key={`inc-${idx}`}>
-                  <circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="3.5"
-                    className="fill-surface stroke-income stroke-2 transition-transform hover:scale-125"
-                  />
-                  {pt.val > 0 && (
-                    <text
-                      x={pt.x}
-                      y={pt.y - 7}
-                      textAnchor="middle"
-                      className="fill-income text-[9px] font-extrabold"
-                    >
-                      {shortBahtLabel(pt.val)}
-                    </text>
-                  )}
-                </g>
-              ))}
-
-              {svgMetrics.expensePoints.map((pt, idx) => (
-                <g key={`exp-${idx}`}>
-                  <circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="3.5"
-                    className="fill-surface stroke-expense stroke-2 transition-transform hover:scale-125"
-                  />
-                  {pt.val > 0 && (
-                    <text
-                      x={pt.x}
-                      y={pt.y - 7}
-                      textAnchor="middle"
-                      className="fill-expense text-[9px] font-extrabold"
-                    >
-                      {shortBahtLabel(pt.val)}
-                    </text>
-                  )}
-                </g>
-              ))}
-            </svg>
+              {selectedNet >= 0 ? "+" : ""}
+              {formatSatang(selectedNet)}
+            </span>
           </div>
+        </div>
+      </div>
 
-          {/* Label เดือนใต้กราฟเส้น */}
-          <div className="flex items-center justify-between px-3 pt-0.5">
-            {displayTrend.map((m) => (
-              <span
+      {/* 2. Apple-style Smooth Area Curve Chart */}
+      <div className="relative w-full overflow-hidden rounded-3xl bg-gradient-to-b from-surface-2/40 to-transparent p-2">
+        <svg
+          viewBox={`0 0 ${svgMetrics.width} ${svgMetrics.height}`}
+          className="w-full h-44 overflow-visible cursor-pointer"
+        >
+          <defs>
+            {/* Gradient แรเงาสีเขียว รายรับ */}
+            <linearGradient id="curveIncomeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-income, #16a34a)" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="var(--color-income, #16a34a)" stopOpacity="0.0" />
+            </linearGradient>
+            {/* Gradient แรเงาสีแดง รายจ่าย */}
+            <linearGradient id="curveExpenseGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-expense, #dc2626)" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="var(--color-expense, #dc2626)" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+
+          {/* Area Shading */}
+          <path d={svgMetrics.incomeArea} fill="url(#curveIncomeGrad)" />
+          <path d={svgMetrics.expenseArea} fill="url(#curveExpenseGrad)" />
+
+          {/* Guidelines Grid */}
+          <line
+            x1="15"
+            y1={svgMetrics.bottomY}
+            x2={svgMetrics.width - 15}
+            y2={svgMetrics.bottomY}
+            stroke="currentColor"
+            strokeOpacity="0.08"
+            strokeDasharray="3 3"
+          />
+
+          {/* Active Vertical Indicator Line (เส้นเล็งตำแหน่งเดือนที่เลือก) */}
+          {svgMetrics.incomePoints[selectedIndex] && (
+            <line
+              x1={svgMetrics.incomePoints[selectedIndex].x}
+              y1="10"
+              x2={svgMetrics.incomePoints[selectedIndex].x}
+              y2={svgMetrics.bottomY}
+              stroke="var(--color-focus, #3b82f6)"
+              strokeWidth="1.5"
+              strokeDasharray="4 4"
+              className="animate-in fade-in duration-200"
+            />
+          )}
+
+          {/* Smooth Vector Curves */}
+          <path
+            d={svgMetrics.incomeLine}
+            fill="none"
+            stroke="var(--color-income, #16a34a)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d={svgMetrics.expenseLine}
+            fill="none"
+            stroke="var(--color-expense, #dc2626)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Clickable Points on Curves */}
+          {svgMetrics.incomePoints.map((pt, idx) => {
+            const isSelected = idx === selectedIndex;
+            return (
+              <g
+                key={`inc-${idx}`}
+                onClick={() => setSelectedIndex(idx)}
+                className="cursor-pointer group"
+              >
+                {/* Hitbox โปร่งแสงขนาดใหญ่ให้ใช้นิ้วแตะง่าย */}
+                <circle cx={pt.x} cy={pt.y} r="18" fill="transparent" />
+
+                {/* วงกลมจุดพล็อต */}
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? "5.5" : "3.5"}
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? "fill-income stroke-surface stroke-3 shadow-md scale-110"
+                      : "fill-surface stroke-income stroke-2 group-hover:scale-125"
+                  }`}
+                />
+
+                {/* ตัวเลขบนจุดพล็อต */}
+                <text
+                  x={pt.x}
+                  y={pt.y - 9}
+                  textAnchor="middle"
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? "fill-income text-[10px] font-black"
+                      : "fill-income text-[8px] font-bold opacity-60 group-hover:opacity-100"
+                  }`}
+                >
+                  {shortBahtLabel(pt.val)}
+                </text>
+              </g>
+            );
+          })}
+
+          {svgMetrics.expensePoints.map((pt, idx) => {
+            const isSelected = idx === selectedIndex;
+            return (
+              <g
+                key={`exp-${idx}`}
+                onClick={() => setSelectedIndex(idx)}
+                className="cursor-pointer group"
+              >
+                {/* Hitbox */}
+                <circle cx={pt.x} cy={pt.y} r="18" fill="transparent" />
+
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={isSelected ? "5.5" : "3.5"}
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? "fill-expense stroke-surface stroke-3 shadow-md scale-110"
+                      : "fill-surface stroke-expense stroke-2 group-hover:scale-125"
+                  }`}
+                />
+
+                <text
+                  x={pt.x}
+                  y={pt.y - 9}
+                  textAnchor="middle"
+                  className={`transition-all duration-200 ${
+                    isSelected
+                      ? "fill-expense text-[10px] font-black"
+                      : "fill-expense text-[8px] font-bold opacity-60 group-hover:opacity-100"
+                  }`}
+                >
+                  {shortBahtLabel(pt.val)}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* แถบชื่อเดือนด้านล่าง — แตะเพื่อเลือกเดือนได้เช่นกัน */}
+        <div className="flex items-center justify-between px-3 pt-1">
+          {trend.map((m, idx) => {
+            const isSelected = idx === selectedIndex;
+            return (
+              <button
                 key={`${m.year}-${m.month}`}
-                className="text-[10px] font-semibold text-text-muted"
+                type="button"
+                onClick={() => setSelectedIndex(idx)}
+                className={`text-[11px] transition-all rounded-md px-1 py-0.5 ${
+                  isSelected
+                    ? "font-black text-focus bg-focus/10 scale-110"
+                    : "font-semibold text-text-muted hover:text-text"
+                }`}
               >
                 {m.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : (
-        /* 2. Curved Bar Chart พร้อมตัวเลขกำกับ */
-        <div className="flex items-end gap-1.5 pt-6 pb-1" style={{ height: 160 }}>
-          {displayTrend.map((m) => {
-            const incomeHeight = maxValue > 0 ? (m.income / maxValue) * 100 : 0;
-            const expenseHeight = maxValue > 0 ? (m.expense / maxValue) * 100 : 0;
-
-            const incText = shortBahtLabel(m.income);
-            const expText = shortBahtLabel(m.expense);
-
-            return (
-              <div
-                key={`${m.year}-${m.month}`}
-                className="group flex flex-1 flex-col items-center gap-1 transition-transform hover:scale-105"
-                title={`${m.label}: รับ ${formatSatang(m.income)} | จ่าย ${formatSatang(m.expense)}`}
-              >
-                {/* คู่แท่งกราฟ พร้อมตัวเลขแสดงค่าด้านบน */}
-                <div className="flex w-full items-end gap-1 justify-center relative" style={{ height: 110 }}>
-                  {/* แท่งรายรับ + ตัวเลข */}
-                  <div className="flex flex-1 flex-col items-center h-full justify-end">
-                    {incText && (
-                      <span className="text-[9px] font-extrabold text-income tabular-nums mb-0.5 leading-none">
-                        {incText}
-                      </span>
-                    )}
-                    <div
-                      className="w-full max-w-[14px] rounded-t-sm bg-income transition-all duration-300 group-hover:brightness-110"
-                      style={{
-                        height: `${Math.max(incomeHeight, 3)}%`,
-                        minHeight: incomeHeight > 0 ? 3 : 0,
-                      }}
-                    />
-                  </div>
-
-                  {/* แท่งรายจ่าย + ตัวเลข */}
-                  <div className="flex flex-1 flex-col items-center h-full justify-end">
-                    {expText && (
-                      <span className="text-[9px] font-extrabold text-expense tabular-nums mb-0.5 leading-none">
-                        {expText}
-                      </span>
-                    )}
-                    <div
-                      className="w-full max-w-[14px] rounded-t-sm bg-expense transition-all duration-300 group-hover:brightness-110"
-                      style={{
-                        height: `${Math.max(expenseHeight, 3)}%`,
-                        minHeight: expenseHeight > 0 ? 3 : 0,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Label เดือน */}
-                <span className="text-[10px] font-semibold text-text-muted group-hover:text-text truncate mt-0.5">
-                  {m.label}
-                </span>
-              </div>
+              </button>
             );
           })}
         </div>
-      )}
+      </div>
     </div>
   );
 }
