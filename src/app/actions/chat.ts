@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { listAccountsWithBalances } from "./accounts";
+import { formatSatang } from "@/lib/format-satang";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -51,7 +53,6 @@ export async function saveChatSession(
 
   if (!user) return { error: "กรุณาเข้าสู่ระบบก่อน" };
 
-  // ตั้งชื่อ Session อัตโนมัติจากคำถามแรกของผู้ใช้ถ้ายังไม่มีชื่อ
   let title = customTitle;
   if (!title) {
     const firstUserMsg = messages.find((m) => m.role === "user");
@@ -110,7 +111,14 @@ export async function deleteChatSession(sessionId: string): Promise<{ success?: 
   return { success: true };
 }
 
-/** ส่งคำถามให้ AI Advisor */
+const CHAT_MODELS = [
+  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3.8-27b:free",
+  "inclusionai/ling-3.0-flash-fin:free",
+  "inclusionai/ling-3.0-flash-vl:free",
+];
+
+/** ส่งคำถามให้ JodTang AI Advisor — แยกข้อมูลตาม user.id 100% ผ่าน RLS */
 export async function askAiAdvisor(
   messages: ChatMessage[]
 ): Promise<{ reply?: string; error?: string }> {
@@ -119,89 +127,116 @@ export async function askAiAdvisor(
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 1. ความปลอดภัยขั้นสูงสุด: บังคับเช็คว่าต้องมี user ที่ล็อกอินแล้วเท่านั้น
   if (!user) {
     return { error: "กรุณาเข้าสู่ระบบก่อนใช้งาน AI Chatbot" };
   }
 
-  // ดึงยอดรวมและหมวดหมู่ล่าสุดของผู้ใช้มาเป็นบริบทความรู้ (Context) ให้บอท
-  const { data: accounts } = await supabase
-    .from("accounts")
-    .select("name, balance")
-    .eq("user_id", user.id);
-
-  const { data: recentTx } = await supabase
-    .from("transactions")
-    .select("kind, amount, occurred_at, categories(name)")
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("occurred_at", { ascending: false })
-    .limit(10);
-
-  let financialContext = "บริบทการเงินปัจจุบันของผู้ใช้:\n";
-  if (accounts && accounts.length > 0) {
-    financialContext += "- กระเป๋าเงิน:\n";
-    for (const acc of accounts) {
-      financialContext += `  • ${acc.name}: ${(acc.balance / 100).toLocaleString()} บาท\n`;
-    }
-  }
-
-  if (recentTx && recentTx.length > 0) {
-    financialContext += "- รายการล่าสุด:\n";
-    for (const tx of recentTx) {
-      const cat = (tx.categories as any)?.name || "ทั่วไป";
-      const sign = tx.kind === "income" ? "+" : "-";
-      financialContext += `  • [${tx.occurred_at.slice(0, 10)}] ${cat}: ${sign}${(tx.amount / 100).toLocaleString()} บาท\n`;
-    }
-  }
-
-  const apiKey =
-    process.env.AI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY;
-
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return {
-      error:
-        "ยังไม่ได้ตั้งค่า API Key สำหรับ AI (กรุณาตั้งค่า GEMINI_API_KEY ในไฟล์ .env.local)",
+      error: "ยังไม่ได้ตั้งค่า OPENROUTER_API_KEY ในไฟล์ .env.local",
     };
   }
 
-  const systemInstruction = `คุณคือ 'JodTang AI Advisor' ที่ปรึกษาทางการเงินส่วนบุคคลประจำแอป JodTang
-ตอบคำถามอย่างเป็นกันเอง สุภาพ กระชับ จริงใจ และให้คำแนะนำที่นำไปใช้ได้จริงเป็นภาษาไทย
-คุณมีข้อมูลภาพรวมการเงินของผู้ใช้ดังนี้ (รักษาความเป็นส่วนตัวอย่างเคร่งครัด):
-${financialContext}
-จงใช้ข้อมูลนี้ตอบข้อสงสัย แนะนำการประหยัด วางแผนการเงิน หรือตอบคำถามทั่วไปเกี่ยวกับการเงินอย่างชาญฉลาด`;
+  // 2. ดึงยอดเงินคงเหลือจริงทุกกระเป๋า (คำนวณสดเฉพาะบัญชีของ user คนนี้เท่านั้น)
+  const accountsRes = await listAccountsWithBalances();
+  const accountBalances = "data" in accountsRes ? accountsRes.data : [];
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  let totalBalanceSatang = 0;
+  let accountsDetailText = "";
 
-    const formattedContents = messages.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.content }],
-    }));
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemInstruction }],
-        },
-        contents: formattedContents,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      return { error: `AI API Error: ${err}` };
+  if (accountBalances.length > 0) {
+    for (const acc of accountBalances) {
+      totalBalanceSatang += acc.balance;
+      accountsDetailText += `  • ${acc.name}: ${formatSatang(acc.balance)}\n`;
     }
-
-    const data = await res.json();
-    const replyText =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "ขออภัยครับ ไม่สามารถสร้างคำตอบได้";
-
-    return { reply: replyText };
-  } catch (err: any) {
-    return { error: err.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI" };
   }
+
+  // 3. ดึงรายการล่าสุด 15 รายการ (เฉพาะ user.id ของคนนี้เท่านั้น)
+  const { data: recentTx } = await supabase
+    .from("transactions")
+    .select("kind, amount, occurred_at, note, categories(name)")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .order("occurred_at", { ascending: false })
+    .limit(15);
+
+  let transactionsDetailText = "";
+  let monthIncomeSatang = 0;
+  let monthExpenseSatang = 0;
+
+  if (recentTx && recentTx.length > 0) {
+    for (const tx of recentTx) {
+      const cat = (tx.categories as any)?.name || "ทั่วไป";
+      const sign = tx.kind === "income" ? "+" : "-";
+      if (tx.kind === "income") monthIncomeSatang += tx.amount;
+      if (tx.kind === "expense") monthExpenseSatang += tx.amount;
+      transactionsDetailText += `  • [${tx.occurred_at.slice(0, 10)}] ${cat}: ${sign}${formatSatang(tx.amount)}${tx.note ? ` (${tx.note})` : ""}\n`;
+    }
+  }
+
+  // 4. ประกอบ Context ข้อมูลการเงินส่วนตัว
+  const financialContext = `
+[ข้อมูลสถานะการเงินจริงของคุณในปัจจุบัน]:
+- ยอดเงินคงเหลือรวมทุกกระเป๋า: ${formatSatang(totalBalanceSatang)}
+- รายละเอียดแต่ละกระเป๋าเงิน:
+${accountsDetailText || "  (ยังไม่มีกระเป๋าเงิน)"}
+- รายการใช้จ่ายล่าสุด 15 รายการ:
+${transactionsDetailText || "  (ยังไม่มีรายการบันทึก)"}
+- สรุปจากรายการล่าสุด: รายรับรวม ${formatSatang(monthIncomeSatang)}, รายจ่ายรวม ${formatSatang(monthExpenseSatang)}
+`.trim();
+
+  const systemInstruction = `คุณคือ 'JodTang AI Advisor' ที่ปรึกษาทางการเงินส่วนบุคคลประจำแอป JodTang
+คุณได้รับข้อมูลยอดเงินคงเหลือจริงและรายการใช้จ่ายล่าสุดของผู้ใช้คนนี้โดยตรง ดังนี้:
+
+${financialContext}
+
+แนวทางการตอบ:
+1. คุณ "มียอดเงินคงเหลือรวมและยอดแต่ละกระเป๋าของผู้ใช้คนนี้แล้ว" (ห้ามบอกว่าไม่มียอดคงเหลือหรือไม่รู้ยอดเงินเด็ดขาด!)
+2. เมื่อผู้ใช้ถามว่า "เงินเหลือเท่าไหร่", "มีเงินเท่าไหร่" ให้ตอบยอดเงินคงเหลือรวมทันที พร้อมแจกแจงตามกระเป๋าเงินได้
+3. ตอบอย่างสุภาพ กระชับ เป็นกันเอง และให้คำแนะนำทางการเงินที่สร้างสรรค์เป็นภาษาไทย`;
+
+  const openRouterMessages = [
+    { role: "system", content: systemInstruction },
+    ...messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+  ];
+
+  let lastErr = "";
+  for (const model of CHAT_MODELS) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://jodtangv1.vercel.app",
+          "X-Title": "JodTang AI Advisor",
+        },
+        body: JSON.stringify({
+          model,
+          messages: openRouterMessages,
+        }),
+      });
+
+      if (!res.ok) {
+        lastErr = await res.text();
+        console.warn(`Chat model ${model} rate-limited (${res.status}), trying next free model...`);
+        continue;
+      }
+
+      const data = await res.json();
+      const replyText =
+        data.choices?.[0]?.message?.content || "ขออภัยครับ ไม่สามารถสร้างคำตอบได้";
+
+      return { reply: replyText };
+    } catch (err: any) {
+      lastErr = err.message;
+    }
+  }
+
+  return { error: `OpenRouter API Error: ${lastErr}` };
 }

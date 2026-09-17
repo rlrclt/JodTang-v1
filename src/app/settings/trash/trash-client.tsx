@@ -1,21 +1,8 @@
 "use client";
 
-/**
- * TrashClient — ฝั่ง client ของหน้าถังขยะ
- *
- * หน้าที่: แสดงรายการ กู้คืน และลบถาวร (มี confirmation ที่ผู้ใช้เห็นชัด —
- * ไม่ใช่แค่กดปุ่มเดียวแล้วหาย ตามสเปกการ์ด)
- * รูปแบบของ confirm: dialog ยืนยันเฉพาะลบถาวรเท่านั้น (กู้คืนไม่ต้องยืนยัน
- * เพราะยังสามารถลบใหม่ได้ ไม่มีทางเสียข้อมูล)
- * โหลดเพิ่ม: ปุ่ม "โหลดเพิ่ม" ด้วย keyset cursor (ไม่ infinite-scroll
- * เพื่อให้คุมได้ว่าโหลดตอนไหน)
- */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type {
-  TrashRow,
-  TrashCursor,
-} from "@/app/actions/trash-types";
+import type { TrashRow, TrashCursor } from "@/app/actions/trash-types";
 import { deleteForever, restoreFromTrash } from "@/app/actions/trash";
 import { listTrash } from "@/app/actions/trash-list";
 import { formatSatang } from "@/lib/format-satang";
@@ -45,7 +32,6 @@ export default function TrashClient({
         setError(res.error);
         return;
       }
-      // เอาออกจากถังขยะ + refresh route ฝั่ง server (listTransactions บนหน้าอื่นจะเห็นรายการคืน)
       setItems((prev) => prev.filter((r) => r.id !== id));
       router.refresh();
     });
@@ -81,37 +67,55 @@ export default function TrashClient({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-card border border-border bg-surface p-8 text-center">
-        <p className="text-text-muted">ถังขยะว่างเปล่า</p>
+      <div className="rounded-3xl border border-border/40 bg-surface/60 p-12 text-center backdrop-blur-xl">
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-surface-2 mx-auto mb-3 text-2xl shadow-inner">
+          🗑️
+        </div>
+        <p className="font-bold text-text text-base">ถังขยะว่างเปล่า</p>
+        <p className="text-xs text-text-muted mt-1">ไม่มีรายการที่ถูกลบอยู่ในระบบ</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-3">
       {error && (
-        <p className="mb-4 rounded-btn border border-border bg-surface p-3 text-expense" role="alert">
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-500 backdrop-blur-xl" role="alert">
           {error}
-        </p>
+        </div>
       )}
 
-      <ul className="flex flex-col gap-2 list-none m-0 p-0">
+      <div className="space-y-2.5">
         {items.map((row) => (
-          <li
+          <div
             key={row.id}
-            className="rounded-card border border-border bg-surface p-4"
+            className="group relative overflow-hidden rounded-3xl border border-white/25 dark:border-white/10 bg-surface/80 p-4 shadow-sm backdrop-blur-xl transition-all hover:border-border/80"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-text-muted">
-                  {kindLabel[row.kind]}
-                  {row.category_name ? ` · ${row.category_name}` : ""}
-                  {row.account_name ? ` · ${row.account_name}` : ""}
-                </p>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold text-text-muted">
+                    {kindLabel[row.kind]}
+                  </span>
+                  {row.category_name && (
+                    <span className="text-xs font-bold text-text truncate">
+                      {row.category_name}
+                    </span>
+                  )}
+                  {row.account_name && (
+                    <span className="text-xs text-text-muted">
+                      · {row.account_name}
+                    </span>
+                  )}
+                </div>
+
                 {row.note && (
-                  <p className="mt-0.5 truncate text-sm">{row.note}</p>
+                  <p className="mt-1 truncate text-xs text-text/90 font-medium">
+                    {row.note}
+                  </p>
                 )}
-                <p className="mt-0.5 text-xs text-text-muted">
+
+                <p className="mt-1 text-[10px] text-text-muted">
                   ลบเมื่อ{" "}
                   {new Intl.DateTimeFormat("th-TH", {
                     timeZone: "Asia/Bangkok",
@@ -120,69 +124,75 @@ export default function TrashClient({
                   }).format(new Date(row.deleted_at))}
                 </p>
               </div>
-              <p
-                className={`shrink-0 tabular-nums font-semibold ${
-                  row.kind === "income" ? "text-income" : "text-expense"
+
+              <div
+                className={`shrink-0 tabular-nums font-extrabold text-sm ${
+                  row.kind === "income" ? "text-emerald-500" : "text-rose-500"
                 }`}
               >
+                {row.kind === "income" ? "+" : "-"}
                 {formatSatang(row.amount)}
-              </p>
+              </div>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            {/* Action Buttons */}
+            <div className="mt-3.5 flex gap-2 pt-2 border-t border-border/30">
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => onRestore(row.id)}
-                className="min-h-11 flex-1 rounded-btn border border-border bg-bg px-3 text-sm font-medium text-text hover:bg-surface-2 disabled:opacity-50"
+                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-surface-2/60 px-3 text-xs font-bold text-text hover:bg-surface-2 active:scale-95 disabled:opacity-50 transition-all"
               >
-                กู้คืน
+                <span>↩</span>
+                <span>กู้คืน</span>
               </button>
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => setConfirmingId(row.id)}
-                className="min-h-11 flex-1 rounded-btn bg-expense px-3 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 text-xs font-bold text-rose-500 hover:bg-rose-500/20 active:scale-95 disabled:opacity-50 transition-all"
               >
-                ลบถาวร
+                <span>✕</span>
+                <span>ลบถาวร</span>
               </button>
             </div>
 
+            {/* Permanent Delete Confirmation Dialog */}
             {confirmingId === row.id && (
-              <div className="mt-3 rounded-btn border border-border bg-bg p-3">
-                <p className="mb-3 text-sm">
-                  ลบถาวรรายการนี้? ลบแล้วจะกู้คืนไม่ได้อีก
+              <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 p-3 animate-in fade-in zoom-in-95">
+                <p className="text-xs font-bold text-rose-500 mb-2.5 text-center">
+                  ⚠️ ยืนยันลบถาวร? ข้อมูลจะถูกลบและไม่สามารถกู้คืนได้อีก
                 </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => onDeleteConfirmed(row.id)}
-                    className="min-h-11 flex-1 rounded-btn bg-expense px-3 text-sm font-medium text-white hover:opacity-90"
+                    className="flex-1 min-h-[36px] rounded-xl bg-rose-500 px-3 text-xs font-bold text-white shadow-sm hover:bg-rose-600 active:scale-95 transition-all"
                   >
-                    ยืนยันลบถาวร
+                    ยืนยันลบ
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmingId(null)}
-                    className="min-h-11 flex-1 rounded-btn border border-border bg-surface px-3 text-sm hover:bg-surface-2"
+                    className="flex-1 min-h-[36px] rounded-xl border border-border/60 bg-surface px-3 text-xs font-bold text-text-muted hover:text-text active:scale-95 transition-all"
                   >
                     ยกเลิก
                   </button>
                 </div>
               </div>
             )}
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
 
       {cursor && (
         <button
           type="button"
           onClick={onLoadMore}
           disabled={loadingMore || pending}
-          className="mt-4 min-h-11 w-full rounded-btn border border-border bg-surface px-4 py-2 text-sm hover:bg-surface-2 disabled:opacity-50"
+          className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-border/60 bg-surface/80 px-4 py-2.5 text-xs font-bold text-text shadow-sm backdrop-blur-xl hover:bg-surface-2 active:scale-95 disabled:opacity-50 transition-all"
         >
-          {loadingMore ? "กำลังโหลด…" : "โหลดเพิ่ม"}
+          {loadingMore ? "กำลังโหลด…" : "โหลดเพิ่มเติม"}
         </button>
       )}
     </div>

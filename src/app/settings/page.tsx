@@ -10,9 +10,29 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  let avatarUrl: string | null = null;
+  let userName = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "ผู้ใช้งาน JodTang";
   const userEmail = user?.email || "ผู้ใช้งาน JodTang";
-  const userName = user?.user_metadata?.name || userEmail.split("@")[0];
 
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile) {
+      if (profile.full_name) userName = profile.full_name;
+      if (profile.avatar_url) avatarUrl = profile.avatar_url;
+    }
+    // fallback avatar from Google OAuth metadata
+    if (!avatarUrl && user.user_metadata?.avatar_url) {
+      avatarUrl = user.user_metadata.avatar_url;
+    }
+    if (!avatarUrl && user.user_metadata?.picture) {
+      avatarUrl = user.user_metadata.picture;
+    }
+  }
   const sections = [
     {
       title: "การเงินและข้อมูล",
@@ -77,10 +97,18 @@ export default async function SettingsPage() {
         className="group mb-6 flex items-center gap-3.5 rounded-3xl border border-white/20 bg-surface/95 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all duration-200 hover:bg-surface-2/60 active:scale-[0.99]"
       >
         {/* User Avatar */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-focus via-blue-500 to-sky-400 text-xl font-black text-white shadow-md shadow-focus/25">
-          {userName.charAt(0).toUpperCase()}
-        </div>
-
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            className="size-14 shrink-0 rounded-2xl object-cover shadow-md ring-2 ring-white/30 dark:ring-white/10"
+          />
+        ) : (
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-focus via-blue-500 to-sky-400 text-xl font-black text-white shadow-md shadow-focus/25">
+            {userName.charAt(0).toUpperCase()}
+          </div>
+        )}
         {/* User Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

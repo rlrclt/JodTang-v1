@@ -89,6 +89,13 @@ export default function TransactionDetailSheet({
     transaction.category_id || transaction.categories?.id || null
   );
 
+  // บอก body ให้ซ่อน MenuBar และ FAB ด้วย smooth slide-down
+  useEffect(() => {
+    document.body.setAttribute("data-overlay-active", "true");
+    return () => {
+      document.body.removeAttribute("data-overlay-active");
+    };
+  }, []);
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<
     { id: string; name: string; icon: string | null }[]
@@ -200,7 +207,7 @@ export default function TransactionDetailSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-auto flex items-end justify-center">
+    <div className="fixed inset-0 z-[70] pointer-events-auto flex items-end justify-center">
       {/* Backdrop — กดพื้นที่นอก sheet เพื่อปิด */}
       <div
         className="absolute inset-0 bg-black/40 transition-opacity duration-200"
@@ -210,10 +217,10 @@ export default function TransactionDetailSheet({
 
       {/* Sheet Modal */}
       <div
-        className="relative z-10 w-full max-w-lg rounded-t-3xl bg-bg shadow-2xl transition-transform duration-200 ease-out"
+        className="relative z-10 w-full max-w-lg rounded-t-3xl bg-bg shadow-2xl transition-transform duration-200 ease-out flex flex-col"
         style={{
-          maxHeight: "calc(100dvh - env(safe-area-inset-top) - 16px)",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          maxHeight: "min(92dvh, calc(100dvh - env(safe-area-inset-top) - 16px))",
+          paddingBottom: "max(env(safe-area-inset-bottom), 12px)",
         }}
       >
         {/* Top Handle */}
@@ -238,10 +245,10 @@ export default function TransactionDetailSheet({
 
         {/* Scrollable Form Content */}
         <div
-          className="overflow-y-auto px-4 py-4 space-y-4"
+          className="overflow-y-auto px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 overscroll-contain flex-1"
           style={{
-            maxHeight: "calc(100dvh - 160px)",
-            paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
+            maxHeight: "calc(92dvh - 90px)",
+            paddingBottom: "16px",
           }}
         >
           {error && (

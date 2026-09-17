@@ -129,6 +129,13 @@ export default function BottomSheet({ onClose }: Props) {
     name: string;
   } | null>(null);
   const [hasNoAccount, setHasNoAccount] = useState(false);
+
+  useEffect(() => {
+    document.body.setAttribute("data-overlay-active", "true");
+    return () => {
+      document.body.removeAttribute("data-overlay-active");
+    };
+  }, []);
   const [categories, setCategories] = useState<
     { id: string; name: string; icon: string | null }[]
   >([]);
@@ -286,7 +293,7 @@ export default function BottomSheet({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[70]">
       {/* Backdrop — กดพื้นที่นอก sheet เพื่อปิด */}
       <div
         className="absolute inset-0 bg-black opacity-40 transition-opacity duration-200"
@@ -296,10 +303,10 @@ export default function BottomSheet({ onClose }: Props) {
 
       {/* Sheet */}
       <div
-        className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-bg shadow-xl transition-transform duration-300 ease-out translate-y-0"
+        className="absolute bottom-0 left-0 right-0 mx-auto max-w-lg rounded-t-3xl bg-bg shadow-2xl transition-transform duration-300 ease-out translate-y-0 flex flex-col"
         style={{
-          maxHeight: "calc(100dvh - env(safe-area-inset-top))",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          maxHeight: "min(92dvh, calc(100dvh - env(safe-area-inset-top) - 12px))",
+          paddingBottom: "max(env(safe-area-inset-bottom), 12px)",
         }}
       >
         {/* Handle */}
@@ -309,8 +316,8 @@ export default function BottomSheet({ onClose }: Props) {
         <div
           className="overflow-y-auto px-4"
           style={{
-            maxHeight: "calc(100dvh - 120px)",
-            paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
+            maxHeight: "calc(92dvh - 70px)",
+            paddingBottom: "16px",
           }}
         >
           {/* Tabs */}
@@ -328,21 +335,22 @@ export default function BottomSheet({ onClose }: Props) {
           </div>
 
           {/* จำนวนเงิน */}
-          <div className="mb-4 rounded-xl bg-surface p-4 text-center">
-            <p className="text-3xl font-bold text-text tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>
+          {/* จำนวนเงิน — ปรับขนาดฟอนต์และช่องไฟตาม resolution จอ */}
+          <div className="mb-2.5 sm:mb-4 rounded-2xl bg-surface p-2.5 sm:p-4 text-center">
+            <p className="text-2xl sm:text-3xl font-bold text-text tabular-nums" style={{ fontVariantNumeric: "tabular-nums" }}>
               ฿{amount || "0"}
             </p>
           </div>
 
-          {/* Numpad */}
-          <div className="mb-4 grid grid-cols-3 gap-2">
+          {/* Numpad — ปุ่มปรับความสูงอัตโนมัติตามความสูงจอ (h-10 บนจอเล็ก / h-12 บนจอใหญ่) */}
+          <div className="mb-3 sm:mb-4 grid grid-cols-3 gap-1.5 sm:gap-2">
             {NUMPAD_KEYS.map((row) =>
               row.map((key) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => handleNumpadKey(key)}
-                  className={`flex h-12 items-center justify-center rounded-xl text-lg font-medium transition-colors ${key === "⌫" ? "bg-expense/10 text-expense" : "bg-surface text-text active:bg-surface-2"}`}
+                  className={`flex h-10 sm:h-12 items-center justify-center rounded-xl text-base sm:text-lg font-medium transition-colors ${key === "⌫" ? "bg-expense/10 text-expense" : "bg-surface text-text active:bg-surface-2"}`}
                 >
                   {key}
                 </button>

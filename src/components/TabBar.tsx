@@ -10,14 +10,16 @@ const tabs = [
   { label: "ตั้งค่า", href: "/settings", icon: "settings" },
 ] as const;
 
-export default function TabBar() {
+export default function TabBar({ visible = true }: { visible?: boolean }) {
   const pathname = usePathname();
+
+  if (!visible) return null;
 
   return (
     <nav
       role="tablist"
       aria-label="แถบนำทางหลัก"
-      className="fixed bottom-0 left-4 right-4 z-50 mx-auto max-w-md rounded-full border border-white/25 dark:border-white/10 bg-white/15 dark:bg-black/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-2xl saturate-180 transition-all"
+      className="fixed bottom-0 left-4 right-4 z-50 mx-auto max-w-md rounded-full border border-white/25 dark:border-white/10 bg-white/15 dark:bg-black/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-2xl saturate-180"
       style={{
         height: "60px",
         bottom: "calc(env(safe-area-inset-bottom) + 12px)",
@@ -34,6 +36,7 @@ export default function TabBar() {
             <li key={tab.href} className="flex-1">
               <SmoothLink
                 href={tab.href}
+                prefetch={true}
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => {

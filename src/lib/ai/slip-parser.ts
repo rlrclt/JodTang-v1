@@ -1,5 +1,6 @@
 /**
- * Gemini Vision Service for Receipt & Slip Parsing
+ * Vision Service for Receipt & Slip Parsing
+ * ยิง OpenRouter (google/gemma-4-26b-a4b-it:free) API จริง 100%
  */
 
 export type ParsedSlip = {
@@ -10,23 +11,9 @@ export type ParsedSlip = {
   date?: string;
 };
 
-export async function parseSlipImageWithGemini(
-  base64Image: string,
-  mimeType: string = "image/jpeg"
-): Promise<{ data?: ParsedSlip; error?: string }> {
-  const apiKey =
-    process.env.AI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY;
+const PROMPT = `คุณคือระบบ OCR และสกัดข้อมูลสลิปโอนเงิน / ใบเสร็จรับเงินภาษาไทยอัจฉริยะ
+จงวิเคราะห์ภาพนี้และสกัดข้อมูลออกมาเป็น JSON เท่านั้น (ห้ามมีคำนำหรือ markdown อื่น ตอบเฉพาะ JSON raw object):
 
-  if (!apiKey) {
-    return { error: "ยังไม่ได้ตั้งค่า GEMINI_API_KEY หรือ AI_API_KEY" };
-  }
-
-  const prompt = `คุณคือระบบ OCR และสกัดข้อมูลสลิปโอนเงิน / ใบเสร็จรับเงินภาษาไทยอัจฉริยะ
-จงวิเคราะห์ภาพนี้และสกัดข้อมูลออกมาเป็น JSON เท่านั้น (ห้ามมีคำนำหรือ markdown อื่น):
-
-โครงสร้าง JSON:
 {
   "kind": "expense" หรือ "income",
   "amount_baht": ตัวเลขยอดเงินหน่วยบาท (เช่น 150.50 หรือ 450),
@@ -38,42 +25,62 @@ export async function parseSlipImageWithGemini(
 กฎการแยก:
 - ถ้าเป็นสลิปโอนเงินสำเร็จ / ชำระเงิน / ซื้อสินค้า -> "kind": "expense"
 - ถ้าเป็นสลิปรับเงิน / ได้รับเงินโอนเข้า -> "kind": "income"
-- amount_baht ต้องเป็นตัวเลขเท่านั้น`;
+- amount_baht ต้องเป็นตัวเลขเท่านั้น ห้ามใส่เครื่องหมายจุลภาค`;
+
+/**
+ * สกัดข้อมูลสลิปด้วย OpenRouter (google/gemma-4-26b-a4b-it:free) API จริง
+ */
+export async function parseSlipImageWithGemini(
+  base64Image: string,
+  mimeType: string = "image/jpeg"
+): Promise<{ data?: ParsedSlip; error?: string }> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey) {
+    return { error: "ยังไม่ได้ตั้งค่า OPENROUTER_API_KEY ในไฟล์ .env.local" };
+  }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-    const res = await fetch(url, {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://jodtangv1.vercel.app",
+        "X-Title": "JodTang Finance",
+      },
       body: JSON.stringify({
-        contents: [
+        model: "google/gemma-4-26b-a4b-it:free",
+        messages: [
           {
-            parts: [
-              { text: prompt },
+            role: "user",
+            content: [
               {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Image,
+                type: "text",
+                text: PROMPT,
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
                 },
               },
             ],
           },
         ],
-        generationConfig: {
-          responseMimeType: "application/json",
-        },
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      return { error: `Gemini API error: ${err}` };
+      return { error: `OpenRouter Error: ${err}` };
     }
 
     const json = await res.json();
-    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) return { error: "ไม่สามารถสกัดข้อมูลจากภาพได้" };
+    let rawText: string = json.choices?.[0]?.message?.content || "";
+
+    // ล้าง Markdown code block ถ้ามี (```json ... ```)
+    rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
     const parsed = JSON.parse(rawText);
     const amountSatang = Math.round((Number(parsed.amount_baht) || 0) * 100);
@@ -92,6 +99,6 @@ export async function parseSlipImageWithGemini(
       },
     };
   } catch (err: any) {
-    return { error: err.message || "เกิดข้อผิดพลาดในการประมวลผลภาพ" };
+    return { error: `OpenRouter parse error: ${err.message}` };
   }
 }

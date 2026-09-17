@@ -43,7 +43,10 @@ export default function RootLayout({
         <Script
           id="theme-init"
           strategy="beforeInteractive"
-        >{`(function(){try{var m=localStorage.getItem("jodtang-theme")||"light";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})();`}</Script>
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem("jodtang-theme")||"light";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})();`,
+          }}
+        />
         <TransactionsProvider>
           <AppShell>{children}</AppShell>
         </TransactionsProvider>

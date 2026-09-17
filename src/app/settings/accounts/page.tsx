@@ -2,10 +2,6 @@ import AccountsList from "./AccountsList";
 import { SmoothLink } from "@/components/SmoothLink";
 import { listAccountsWithBalances, listArchivedAccounts } from "@/app/actions/accounts";
 
-// หน้าจัดการกระเป๋าเงิน (#9 จาก SCREENS.md)
-// - รายการกระเป๋า + ยอดคงเหลือต่อกระเป๋า (จากชั้นข้อมูล ไม่บวกในไฟล์นี้)
-// - กลุ่ม "ปิดใช้งานแล้ว" แยก อ่านจาก listArchivedAccounts
-// - สถานะ error มี refresh ปุ่ม (refresh เดียวทั้งหน้า) — ไม่มี fallback ล็อกอินปลอม
 export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
@@ -19,16 +15,16 @@ export default async function AccountsPage() {
 
   if (activeError || archivedError) {
     return (
-      <div className="flex min-h-[100dvh] flex-col">
+      <div className="mx-auto min-h-[100dvh] max-w-lg px-4 pt-6 pb-28">
         <Header />
-        <main className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-          <p className="mb-4 text-warn">โหลดกระเป๋าเงินไม่สำเร็จ</p>
-          <p className="mb-6 text-sm text-text-muted">
+        <main className="mt-8 flex flex-col items-center justify-center p-8 text-center rounded-3xl border border-rose-500/30 bg-rose-500/10 backdrop-blur-xl">
+          <p className="font-bold text-rose-500">โหลดกระเป๋าเงินไม่สำเร็จ</p>
+          <p className="mt-1 text-xs text-text-muted">
             {activeError ?? archivedError}
           </p>
           <a
             href="/settings/accounts"
-            className="min-h-[44px] rounded-btn border border-border bg-surface px-6 py-3 text-base"
+            className="mt-4 min-h-[44px] rounded-2xl bg-surface px-6 py-2.5 text-sm font-semibold border border-border shadow-sm active:scale-95 transition-all"
           >
             ลองใหม่
           </a>
@@ -38,7 +34,7 @@ export default async function AccountsPage() {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="mx-auto min-h-[100dvh] max-w-lg px-4 pt-6 pb-28 select-none">
       <Header />
       <AccountsList
         active={"data" in active ? active.data : []}
@@ -50,22 +46,30 @@ export default async function AccountsPage() {
 
 function Header() {
   return (
-    <header className="flex items-center gap-2 p-4 pb-2">
-      <SmoothLink href="/settings" direction="back" className="p-2 -m-2" aria-label="กลับไปหน้าตั้งค่า">
+    <header className="flex items-center gap-3 mb-6">
+      <SmoothLink
+        href="/settings"
+        direction="back"
+        className="flex size-10 items-center justify-center rounded-full border border-white/20 dark:border-white/10 bg-surface/80 text-text shadow-sm backdrop-blur-xl transition-all active:scale-95 hover:bg-surface-2"
+        aria-label="กลับไปหน้าตั้งค่า"
+      >
         <svg
-          width="22"
-          height="22"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <polyline points="15 18 9 12 15 6" />
+          <path d="M15 18l-6-6 6-6" />
         </svg>
       </SmoothLink>
-      <h1 className="text-2xl font-bold">กระเป๋าเงิน</h1>
+      <div>
+        <h1 className="text-2xl font-extrabold tracking-tight text-text">กระเป๋าเงิน</h1>
+        <p className="text-xs text-text-muted">จัดการบัญชีธนาคาร บัตร และเงินสด</p>
+      </div>
     </header>
   );
 }

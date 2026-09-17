@@ -19,7 +19,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showShell = !EXCLUDED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
-
   return (
     <div className="min-h-[100dvh] bg-bg text-text">
       <main
@@ -32,8 +31,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       {showShell && (
         <>
-          <FAB onClick={() => setIsChatOpen(true)} />
-          <TabBar />
+          {pathname === "/summary" ? (
+            <FAB
+              mode="ai"
+              visible={!isSheetOpen && !isChatOpen}
+              onClick={() => setIsChatOpen(true)}
+            />
+          ) : pathname === "/" || pathname.startsWith("/transactions") ? (
+            <FAB
+              mode="add"
+              visible={!isSheetOpen && !isChatOpen}
+              onClick={() => setIsSheetOpen(true)}
+            />
+          ) : null}
+          <TabBar visible={!isSheetOpen && !isChatOpen} />
           {isChatOpen && (
             <ChatbotModal onClose={() => setIsChatOpen(false)} />
           )}

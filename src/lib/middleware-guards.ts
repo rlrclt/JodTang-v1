@@ -7,6 +7,7 @@ export const PUBLIC_PATHS = [
   "/auth/signin",
   "/line/link",
   "/line/claim",
+  "/line/auth",
   "/offline",
   "/manifest.webmanifest",
   "/api/line/webhook",

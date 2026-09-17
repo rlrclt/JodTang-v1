@@ -10,19 +10,21 @@ type Props = {
   lineUserId: string | null;
 };
 
+const DEFAULT_LIFF_ID = "2011649062-neOljV8x";
+const BOT_BASIC_ID = "@650dszjd";
+const BOT_QR_CODE_URL = "https://qr-official.line.me/sid/L/650dszjd.png";
+const BOT_ADD_FRIEND_URL = "https://line.me/R/ti/p/@650dszjd";
+
 export default function LineConnectSection({ email, name, lineUserId }: Props) {
   const [unlinking, setUnlinking] = useState(false);
   const [unlinkError, setUnlinkError] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
   const router = useRouter();
 
   const isConnected = Boolean(lineUserId);
 
-  // LIFF ID เป็นค่า public — ใช้ env ถ้ามี ไม่งั้นใช้ค่าดีฟอลต์ของโปรเจกต์
-  const liffId =
-    process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || DEFAULT_LIFF_ID;
   const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
-  // Basic ID บอท (public) — ปุ่มเพิ่มเพื่อน ต้องเป็นเพื่อนก่อนบอทถึง push ได้
-  const botFriendUrl = "https://line.me/R/ti/p/@650dszjd";
 
   const handleUnlink = async () => {
     if (!confirm("ต้องการยกเลิกการเชื่อมต่อกับ LINE Bot ใช่หรือไม่?")) return;
@@ -51,7 +53,7 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-text">LINE Bot</h3>
+            <h3 className="text-sm font-bold text-text">LINE Bot ({BOT_BASIC_ID})</h3>
             <p className="text-[10px] text-text-muted mt-0.5">ส่งสลิปทาง LINE · AI ลงบัญชีอัตโนมัติ</p>
           </div>
         </div>
@@ -83,6 +85,37 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
             คุณสามารถเปิดแอป LINE และส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทบอทได้ทันที AI จะวิเคราะห์และลงบัญชีให้คุณอัตโนมัติ
           </p>
 
+          {/* ปุ่มเปิดแชท LINE Bot */}
+          <div className="pt-1 flex flex-wrap gap-2">
+            <a
+              href={`https://line.me/R/oaMessage/${BOT_BASIC_ID}/`}
+              className="flex-1 flex min-h-[40px] items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#05b34c] active:scale-95 transition-all"
+            >
+              <span>💬</span>
+              <span>เปิดแชทกับบอท</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setShowQR(!showQR)}
+              className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-surface px-3 py-2 text-xs font-bold text-text hover:bg-surface-2 active:scale-95 transition-all"
+            >
+              <span>📷</span>
+              <span>{showQR ? "ซ่อน QR" : "ดู QR Code"}</span>
+            </button>
+          </div>
+
+          {showQR && (
+            <div className="mt-2 flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-border/40 text-center animate-in fade-in zoom-in-95 duration-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={BOT_QR_CODE_URL}
+                alt="LINE Bot QR Code"
+                className="size-36 object-contain rounded-lg"
+              />
+              <p className="mt-2 text-[11px] font-bold text-zinc-700">สแกนเพื่อเพิ่มเพื่อน {BOT_BASIC_ID}</p>
+            </div>
+          )}
+
           <div className="pt-1 flex justify-end">
             <button
               type="button"
@@ -100,52 +133,93 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
           )}
         </div>
       ) : (
-        /* State 2: ยังไม่ได้เชื่อมต่อ — กดปุ่มเดียว */
-        <div className="rounded-2xl border border-border/40 bg-surface-2/70 p-4 space-y-3">
+        /* State 2: ยังไม่ได้เชื่อมต่อ */
+        <div className="rounded-2xl border border-border/40 bg-surface-2/70 p-4 space-y-3.5">
           <div>
             <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
-              เชื่อมต่อง่าย ๆ ใน 1 คลิก
+              เชื่อมต่อบอทใน 2 ขั้นตอน
             </span>
             <p className="text-xs text-text leading-relaxed mt-1">
-              กดปุ่มด้านล่างเพื่อล็อกอินด้วยบัญชี LINE ระบบจะเชื่อมต่อให้อัตโนมัติ
+              เพิ่มเพื่อนบอทและเชื่อมต่อบัญชีเพื่อส่งสลิปผ่านแชท LINE
             </p>
           </div>
 
-          {/* ปุ่มเชื่อมต่อ LINE — เปิด LIFF ในแอป LINE (ไม่ใช้ OAuth) */}
-          <div className="pt-1">
+          {/* ขั้นตอนที่ 1: เพิ่มเพื่อนบอท (LINE Bot Friend) */}
+          <div className="rounded-2xl border border-[#06C755]/30 bg-[#06C755]/5 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex size-5 items-center justify-center rounded-full bg-[#06C755] text-white text-[11px] font-bold">
+                  1
+                </span>
+                <span className="text-xs font-bold text-text">เพิ่มเพื่อนกับ LINE Bot ก่อน</span>
+              </div>
+              <span className="text-[10px] font-bold text-[#06C755] bg-[#06C755]/10 px-2 py-0.5 rounded-full">
+                {BOT_BASIC_ID}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <a
+                href={BOT_ADD_FRIEND_URL}
+                className="flex-1 flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-[#06C755] px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-[#05b34c] active:scale-95 transition-all text-center"
+              >
+                <span>➕</span>
+                <span>กดเพิ่มเพื่อนในแอป LINE</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowQR(!showQR)}
+                className="flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-surface px-3 py-2 text-xs font-bold text-text hover:bg-surface-2 active:scale-95 transition-all"
+              >
+                <span>📷</span>
+                <span>{showQR ? "ซ่อน QR" : "QR Code"}</span>
+              </button>
+            </div>
+
+            {/* ส่วนแสดง QR Code สำหรับสแกนบนคอม/iPad */}
+            {showQR && (
+              <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-border/40 text-center animate-in fade-in zoom-in-95 duration-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={BOT_QR_CODE_URL}
+                  alt="LINE Bot QR Code"
+                  className="size-36 object-contain rounded-lg shadow-inner"
+                />
+                <p className="mt-2 text-[11px] font-bold text-zinc-800">
+                  สแกนด้วยกล้อง LINE เพื่อเพิ่มเพื่อน
+                </p>
+                <p className="text-[10px] text-zinc-500 mt-0.5">ID: {BOT_BASIC_ID}</p>
+              </div>
+            )}
+          </div>
+
+          {/* ขั้นตอนที่ 2: กดเชื่อมต่อบัญชี */}
+          <div className="rounded-2xl border border-border/50 bg-surface p-3.5 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <span className="flex size-5 items-center justify-center rounded-full bg-focus text-white text-[11px] font-bold">
+                2
+              </span>
+              <span className="text-xs font-bold text-text">เชื่อมต่อบัญชี JodTang</span>
+            </div>
+
             {liffUrl ? (
               <a
                 href={liffUrl}
-                className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-focus px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-90 active:scale-95 transition-all text-center"
               >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-              </svg>
-              <span>เชื่อมต่อบัญชี LINE</span>
+                <span>🔗</span>
+                <span>กดเชื่อมต่อบัญชีด้วย LINE</span>
               </a>
             ) : (
-              <p role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold text-amber-700">
-                ⚠️ ยังไม่ได้ตั้งค่า NEXT_PUBLIC_LIFF_ID บนเซิร์ฟเวอร์ ติดต่อแอดมินครับ
+              <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs font-bold text-amber-700">
+                ⚠️ ยังไม่ได้ตั้งค่า NEXT_PUBLIC_LIFF_ID ติดต่อแอดมินครับ
               </p>
             )}
           </div>
 
-          <p className="text-[10px] text-text-muted leading-normal">
-            💡 ขั้นตอน: 1) กดปุ่มเขียวเชื่อมต่อ 2) <b>ต้องเป็นเพื่อนกับบอทก่อน</b> ไม่งั้นบอททักหาไม่ได้
+          <p className="text-[10px] text-text-muted leading-relaxed px-1">
+            💡 <strong>สำคัญ:</strong> ต้องเป็นเพื่อนกับบอทก่อน เพื่อให้บอทสามารถส่งข้อความตอบกลับและแจ้งเตือนสลิปได้ครับ
           </p>
-
-          {/* ปุ่มเพิ่มเพื่อนบอท — LINE ส่ง push ได้เฉพาะเพื่อนเท่านั้น */}
-          <div className="pt-1">
-            <a
-              href={botFriendUrl}
-              className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#06C755]/40 bg-white px-4 py-3 text-sm font-bold text-[#06C755] transition-all hover:bg-[#06C755]/5 active:scale-[0.99] text-center"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-              </svg>
-              <span>เพิ่มเพื่อนบอท (@650dszjd)</span>
-            </a>
-          </div>
         </div>
       )}
     </section>

@@ -252,26 +252,39 @@ export default function CategoriesScreen(props: {
   const expense = items.filter((r) => r.kind === "expense").sort(byThaiName);
 
   return (
-    <div className="min-h-[100dvh] bg-bg pb-6">
-      <header className="sticky top-0 z-10 border-b border-border bg-bg px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">หมวดหมู่</h1>
-          <SmoothLink
-            href="/settings"
-            direction="back"
-            className="flex min-h-[44px] items-center text-sm text-text-muted"
+    <div className="mx-auto min-h-[100dvh] max-w-lg px-4 pt-6 pb-28 select-none">
+      <header className="flex items-center gap-3 mb-6">
+        <SmoothLink
+          href="/settings"
+          direction="back"
+          className="flex size-10 items-center justify-center rounded-full border border-white/20 dark:border-white/10 bg-surface/80 text-text shadow-sm backdrop-blur-xl transition-all active:scale-95 hover:bg-surface-2"
+          aria-label="กลับไปหน้าตั้งค่า"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            กลับ
-          </SmoothLink>
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </SmoothLink>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-text">หมวดหมู่</h1>
+          <p className="text-xs text-text-muted">ปรับแต่งหมวดหมู่รายรับและรายจ่าย</p>
         </div>
       </header>
 
       {/* banner error ของการ archive/กู้คืน */}
       {bannerError && (
-        <div className="px-4 pt-3" aria-live="polite">
+        <div className="mb-4">
           <div
             role="alert"
-            className="rounded-[var(--radius-btn)] border border-expense px-4 py-2 text-sm text-expense"
+            className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-500 backdrop-blur-xl"
           >
             {bannerError}
           </div>
@@ -345,20 +358,22 @@ export default function CategoriesScreen(props: {
             onEdit={openEdit}
             onArchive={handleArchive}
           />
-          <div className="flex gap-3 px-4 pt-4">
+          <div className="flex gap-2.5 pt-4">
             <button
               type="button"
               onClick={() => openAdd("expense")}
-              className="min-h-[44px] flex-1 rounded-[var(--radius-btn)] border border-border bg-surface px-4 py-2.5 text-base transition-colors hover:bg-surface-2"
+              className="flex min-h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl border border-border/60 bg-surface/80 px-4 py-2.5 text-xs font-bold text-text shadow-sm backdrop-blur-xl hover:bg-surface-2 active:scale-95 transition-all"
             >
-              + เพิ่มหมวดรายจ่าย
+              <span className="text-base text-rose-500">＋</span>
+              <span>เพิ่มหมวดรายจ่าย</span>
             </button>
             <button
               type="button"
               onClick={() => openAdd("income")}
-              className="min-h-[44px] flex-1 rounded-[var(--radius-btn)] border border-border bg-surface px-4 py-2.5 text-base transition-colors hover:bg-surface-2"
+              className="flex min-h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl border border-border/60 bg-surface/80 px-4 py-2.5 text-xs font-bold text-text shadow-sm backdrop-blur-xl hover:bg-surface-2 active:scale-95 transition-all"
             >
-              + เพิ่มหมวดรายรับ
+              <span className="text-base text-emerald-500">＋</span>
+              <span>เพิ่มหมวดรายรับ</span>
             </button>
           </div>
         </>
@@ -416,52 +431,127 @@ function KindSection({
   onEdit: (row: Row) => void;
   onArchive: (row: Row) => void;
 }) {
+  const [showSystem, setShowSystem] = useState(false);
+
   if (rows.length === 0) return null;
 
+  const customRows = rows.filter((r) => !DEFAULT_CATEGORY_NAMES.has(r.name));
+  const systemRows = rows.filter((r) => DEFAULT_CATEGORY_NAMES.has(r.name));
+
   return (
-    <section className="px-4 pt-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-text-muted">{title}</h2>
-        <span className="text-[11px] text-text-muted opacity-80">
-          {rows.filter((r) => !DEFAULT_CATEGORY_NAMES.has(r.name)).length > 0
-            ? `${rows.length} หมวด (มีหมวดที่คุณสร้างเอง)`
-            : `${rows.length} หมวด`}
+    <section className="mt-5 space-y-3">
+      {/* Header */}
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">{title}</h2>
+        <span className="text-[11px] font-semibold text-text-muted opacity-80">
+          {customRows.length > 0 ? `สร้างเอง ${customRows.length} · ระบบ ${systemRows.length}` : `ระบบ ${systemRows.length} หมวด`}
         </span>
       </div>
-      <ul className="overflow-hidden rounded-[var(--radius-card)] border border-border">
-        {rows.map((row) => {
-          const isCustom = !DEFAULT_CATEGORY_NAMES.has(row.name);
-          return (
-            <li
+
+      {/* หมวดหมู่ที่ผู้ใช้สร้างเอง (Custom Categories) */}
+      {customRows.length > 0 ? (
+        <div className="overflow-hidden rounded-3xl border border-white/25 dark:border-white/10 bg-surface/80 shadow-sm backdrop-blur-xl divide-y divide-border/40">
+          {customRows.map((row) => (
+            <div
               key={row.id}
-              className="flex items-center gap-3 border-b border-border bg-surface px-3 py-2 last:border-b-0 transition-colors hover:bg-surface-2/60"
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-2/50"
             >
               <CategoryAvatar icon={row.icon} />
               <button
                 type="button"
                 onClick={() => onEdit(row)}
-                className="min-h-[44px] min-w-0 flex-1 flex items-center gap-2 truncate text-left text-base group"
+                className="min-h-[38px] min-w-0 flex-1 flex items-center gap-2 truncate text-left group"
               >
-                <span className="truncate font-medium text-text group-hover:text-focus">{row.name}</span>
-                {isCustom && (
-                  <span className="shrink-0 rounded-md bg-focus/10 px-1.5 py-0.5 text-[10px] font-bold text-focus">
-                    สร้างเอง
-                  </span>
-                )}
+                <span className="truncate font-bold text-sm text-text group-hover:text-focus transition-colors">
+                  {row.name}
+                </span>
+                <span className="shrink-0 rounded-full bg-focus/15 px-2 py-0.5 text-[10px] font-extrabold text-focus">
+                  สร้างเอง
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => onArchive(row)}
-                aria-label={`ซ่อนหมวด ${row.name}`}
-                className="flex min-h-[44px] min-w-[44px] items-center justify-center text-text-muted hover:text-expense transition-colors"
-                title="ซ่อนหมวดหมู่นี้"
+                aria-label={`ลบหมวด ${row.name}`}
+                className="flex size-8 items-center justify-center rounded-xl border border-border/40 bg-surface-2/60 text-text-muted hover:text-rose-500 active:scale-90 transition-all"
+                title="ลบ/ซ่อนหมวดหมู่นี้"
               >
                 <ArchiveGlyph />
               </button>
-            </li>
-          );
-        })}
-      </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-surface-2/30 p-3 text-center text-xs text-text-muted">
+          ยังไม่มีหมวด{title}ที่คุณสร้างเอง
+        </div>
+      )}
+
+      {/* หมวดหมู่เริ่มต้นของระบบ (พับซ่อนไว้ใน Accordion + ไม่สามารถลบได้) */}
+      {systemRows.length > 0 && (
+        <div className="rounded-3xl border border-border/40 bg-surface-2/40 overflow-hidden transition-all backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setShowSystem(!showSystem)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-surface-2/60"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs">🔒</span>
+              <span className="text-xs font-bold text-text-muted">
+                หมวดหมู่เริ่มต้นของระบบ ({systemRows.length} หมวด)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-text-muted font-bold">
+              <span>{showSystem ? "ซ่อน" : "ดูทั้งหมด"}</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`transition-transform duration-200 ${showSystem ? "rotate-180" : ""}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </div>
+          </button>
+
+          {showSystem && (
+            <div className="divide-y divide-border/30 border-t border-border/30 bg-surface/60">
+              {systemRows.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+                >
+                  <CategoryAvatar icon={row.icon} />
+                  <button
+                    type="button"
+                    onClick={() => onEdit(row)}
+                    className="min-h-[34px] min-w-0 flex-1 flex items-center gap-2 truncate text-left group"
+                  >
+                    <span className="truncate font-medium text-xs text-text group-hover:text-focus transition-colors">
+                      {row.name}
+                    </span>
+                    <span className="shrink-0 rounded-md bg-surface-2 px-1.5 py-0.5 text-[9px] font-bold text-text-muted">
+                      ของระบบ
+                    </span>
+                  </button>
+                  {/* หมวดระบบ: ไม่มีปุ่มลบ แสดงไอคอนล็อคแทนเพื่อความปลอดภัย */}
+                  <span
+                    className="flex size-7 items-center justify-center text-text-muted/50 text-xs select-none"
+                    title="หมวดหมู่ของระบบ ไม่สามารถลบได้"
+                  >
+                    🔒
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -532,7 +622,7 @@ function CategorySheet(props: {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col justify-end"
+      className="fixed inset-0 z-[70] flex flex-col justify-end"
       role="dialog"
       aria-modal="true"
       aria-label={props.editing ? "แก้หมวดหมู่" : "เพิ่มหมวดหมู่"}
@@ -543,7 +633,7 @@ function CategorySheet(props: {
         onClick={props.onClose}
         className="absolute inset-0 bg-black/30"
       />
-      <div className="relative max-h-[85dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] bg-bg px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-2">
+      <div className="relative max-h-[85dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] bg-bg px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-3 shadow-2xl">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-2" />
         <h2 className="mb-4 text-lg font-semibold">
           {props.editing ? "แก้หมวดหมู่" : "เพิ่มหมวดหมู่"}

@@ -41,21 +41,22 @@ export function useSmoothNavigate() {
 
       const direction = options?.direction ?? "fade";
 
+      // ตรวจสอบว่าถ้าอยู่ในอุปกรณ์เคลื่อนที่ หรือเน็ตช้า ไม่ให้ค้าง transition เกิน 500ms
       if (typeof document !== "undefined" && document.startViewTransition) {
-        // บอก CSS ว่าท่าไหนก่อนเริ่ม transition — อ่านคืนหลังจบเพื่อไม่ให้ค้างข้ามหน้า
         document.documentElement.dataset.viewDirection = direction;
         const cleanup = () => {
           delete document.documentElement.dataset.viewDirection;
         };
-        // callback ต้อง sync เท่านั้น — router.push คืน void ไม่ใช่ promise ที่รอข้อมูลได้
-        // ถ้าใส่ async/await ตรงนี้ transition จะจบก่อนหน้าปลายทาง render เสร็จ = ภาพตัดแบบพรึบ
-        const transition = document.startViewTransition(() => {
+
+        try {
+          const transition = document.startViewTransition(() => {
+            router.push(href);
+          });
+          transition.finished.then(cleanup, cleanup);
+        } catch {
+          cleanup();
           router.push(href);
-        });
-        // finished reject ได้เมื่อ transition ถูกยกเลิก (เช่น กดถี่) — ล้างค่าในทุกกรณี
-        transition.finished.then(cleanup, cleanup);
-      } else {
-        router.push(href);
+        }
       }
     },
     [router],

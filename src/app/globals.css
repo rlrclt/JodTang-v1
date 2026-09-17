@@ -245,11 +245,27 @@ html[data-view-direction="back"]::view-transition-new(root) {
   --color-cat-other: #6b7280;
 }
 
-/* เมื่อปฏิทินกางออกเป็น Overlay ซ่อน TabBar และ FAB ล่วงหน้าระดับ CSS เพื่อป้องกันการแวบโผล่ */
+/* เมื่อมี Modal หรือ Bottom Sheet กางขึ้นมา ให้ซ่อน TabBar และ FAB หายพึบทันที */
 body[data-calendar-expanded="true"] nav[role="tablist"],
-body[data-calendar-expanded="true"] button[aria-label="เพิ่มรายการใหม่"] {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+body[data-calendar-expanded="true"] button[aria-label="เพิ่มรายการใหม่"],
+body[data-calendar-expanded="true"] button[aria-label="ปรึกษา AI Chatbot"],
+body[data-overlay-active="true"] nav[role="tablist"],
+body[data-overlay-active="true"] button[aria-label="เพิ่มรายการใหม่"],
+body[data-overlay-active="true"] button[aria-label="ปรึกษา AI Chatbot"] {
+  display: none !important;
+}
+
+/* ─── Mobile Performance Optimizations ─── */
+@media (max-width: 768px) {
+  /* ฮาร์ดแวร์ GPU เร่งความเร็วการเลื่อนและการแตะ */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  nav[role="tablist"],
+  main {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
 }

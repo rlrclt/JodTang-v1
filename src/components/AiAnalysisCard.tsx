@@ -173,7 +173,7 @@ export default function AiAnalysisCard({
           </div>
 
           {/* Actionable Insights */}
-          {analysis.insights && analysis.insights.length > 0 && (
+          {Array.isArray(analysis.insights) && analysis.insights.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-bold text-text-muted px-1">
                 ข้อสังเกตและโอกาสปรับปรุง:

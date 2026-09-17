@@ -8,7 +8,7 @@ import {
 import { parseSlipImageWithGemini } from "@/lib/ai/slip-parser";
 import { createClient } from "@supabase/supabase-js";
 import { formatSatang } from "@/lib/format-satang";
-
+import { askLineAiAdvisor } from "@/lib/line/line-ai";
 // ใช้ Supabase Service Client สำหรับ Webhook เพื่อบันทึกข้อมูลแทนผู้ใช้
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -175,13 +175,14 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // ข้อความช่วยเหลือทั่วไป
+      // ตอบกลับด้วย AI Advisor ส่วนตัวใน LINE ทันที
+      const aiAnswer = await askLineAiAdvisor(profile.id, text);
       await replyLineMessage(
         event.replyToken,
         [
           {
             type: "text",
-            text: `📸 ส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทนี้ได้เลยครับ AI จะสกัดข้อมูลและลงบันทึกให้คุณอัตโนมัติ! ✨`,
+            text: aiAnswer,
           },
         ],
         channelAccessToken

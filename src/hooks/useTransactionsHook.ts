@@ -90,9 +90,11 @@ function getInitialMonth(): string {
     }).format(now);
     return parts.slice(0, 7) + "-01";
   }
-  const params = new URLSearchParams(window.location.search);
-  const m = params.get("m");
-  if (m && /^\d{4}-\d{2}-\d{2}$/.test(m)) return m;
+  if (window.location.pathname === "/") {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get("m");
+    if (m && /^\d{4}-\d{2}-\d{2}$/.test(m)) return m;
+  }
   // default = เดือนปัจจุบัน ตาม Asia/Bangkok
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -243,17 +245,7 @@ export function useTransactionsHook(): TransactionsHook {
   useEffect(() => {
     markFreshRef.current = markFresh;
   });
-
-  // sync month → URL (ใช้ history.replaceState ไม่ trigger re-render)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    params.set("m", month);
-    const newSearch = `?${params.toString()}`;
-    if (window.location.search !== newSearch) {
-      window.history.replaceState(null, "", `${window.location.pathname}${newSearch}`);
-    }
-  }, [month]);
+  // ไม่ต้อง sync ?m= ไปที่ URL เพื่อให้ URL สะอาด ไม่มี query string กวนใจ
 
   const setMonth = useCallback((m: string) => {
     setMonthState(m);
