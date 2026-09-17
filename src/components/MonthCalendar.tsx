@@ -131,6 +131,18 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
 
   const effectiveYear = zoom ? navYear : year;
   const today = useMemo(() => getTodayParts(), []);
+  // ป้องกันการเลื่อนหน้าจอ (Body scroll lock) ขณะที่เปิดปฏิทินกางทับ
+  useEffect(() => {
+    if (!isExpanded) return;
+    const originalOverflow = document.body.style.overflow;
+    const originalTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.touchAction = originalTouchAction;
+    };
+  }, [isExpanded]);
 
   // key ปัจจุบัน → ใช้แคชที่ mount ค้างไว้โดยไม่ต้อง setState ใน effect
   const key = `${effectiveYear}-${month}`;
@@ -251,11 +263,11 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
   const strip = zoom ? yearIncome : summary;
 
   return (
-    <div className="relative z-30">
-      {/* Backdrop เบลอจาง ๆ ตอนกางเกาะปฏิทินออกมาทับเนื้อหา */}
+    <div className={`relative ${isExpanded ? "z-[60]" : "z-30"}`}>
+      {/* Backdrop เบลอทั่วทั้งจอ (ครอบคลุมทับ TabBar z-50 และล็อคไม่ให้ฉากหลังเลื่อน) */}
       {isExpanded && (
         <div
-          className="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-300"
+          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md animate-in fade-in duration-300"
           onClick={() => {
             setIsExpanded(false);
             setZoom(false);
@@ -264,11 +276,11 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
         />
       )}
 
-      {/* Island Container — ขยายลอยทับเนื้อหาข้างล่างแบบ Dynamic Island */}
+      {/* Island Container — ขยายลอยทับเนื้อหาและเมนูบาร์ข้างล่างแบบ Dynamic Island */}
       <div
-        className={`relative z-30 overflow-hidden bg-surface/95 backdrop-blur-2xl border border-white/20 dark:border-white/10 transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        className={`relative z-[70] overflow-hidden bg-surface/95 backdrop-blur-2xl border border-white/20 dark:border-white/10 transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isExpanded
-            ? "absolute top-0 left-0 right-0 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] ring-1 ring-black/5 dark:ring-white/10"
+            ? "absolute top-0 left-0 right-0 rounded-3xl p-4 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/10"
             : "rounded-[26px] p-2.5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)]"
         }`}
       >
