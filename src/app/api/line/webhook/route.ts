@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
         const email = text.replace(/^(LINK:|เชื่อมต่อ:)/i, "").trim().toLowerCase();
         const { data: targetUser, error: findErr } = await supabase
           .from("profiles")
-          .select("id, email")
+          .select("id, email, full_name")
           .eq("email", email)
           .maybeSingle();
 
@@ -78,18 +78,19 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ผูก line_user_id เข้ากับ profile
+        // ผูก line_user_id เข้ากับ profile ใน Supabase
         await supabase
           .from("profiles")
           .update({ line_user_id: lineUserId })
           .eq("id", targetUser.id);
 
+        const displayName = targetUser.full_name || targetUser.email.split("@")[0];
         await replyLineMessage(
           event.replyToken,
           [
             {
               type: "text",
-              text: `🎉 เชื่อมต่อบัญชีสำเร็จ!\nยินดีต้อนรับคุณ ${targetUser.email} ตอนนี้คุณสามารถส่งรูปสลิปหรือใบเสร็จเข้ามาเพื่อให้ AI ช่วยบันทึกรายรับ-รายจ่ายได้ทันทีครับ`,
+              text: `🎉 เชื่อมต่อบัญชีสำเร็จเรียบร้อยแล้วครับ!\n\n👤 บัญชี: คุณ ${displayName}\n📧 อีเมล: ${targetUser.email}\n🟢 สถานะ: พร้อมบันทึกสลิปอัตโนมัติ\n\n📸 ส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทนี้ได้ทันที AI จะช่วยลงบัญชีให้คุณอัตโนมัติครับ ✨`,
             },
           ],
           channelAccessToken
