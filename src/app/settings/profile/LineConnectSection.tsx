@@ -17,6 +17,12 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
 
   const isConnected = Boolean(lineUserId);
   const linkCommand = `LINK:${email}`;
+  const botBasicId = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || "";
+
+  // Direct Connect Link (ส่งคำสั่ง LINK: เข้าแชท LINE อัตโนมัติในคลิกเดียว)
+  const directConnectUrl = botBasicId
+    ? `https://line.me/R/oaMessage/${botBasicId.startsWith("@") ? botBasicId : "@" + botBasicId}/?${encodeURIComponent(linkCommand)}`
+    : `https://line.me/R/share?text=${encodeURIComponent(linkCommand)}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(linkCommand);
@@ -75,7 +81,7 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
                 บัญชีผู้ใช้งานที่เชื่อมต่อ
               </span>
               <h4 className="text-sm font-extrabold text-text flex items-center gap-1.5 mt-0.5">
-                <span>👤 {name}</span>
+                <span>👤 คุณ{name}</span>
                 <span className="text-xs font-normal text-text-muted">({email})</span>
               </h4>
             </div>
@@ -100,44 +106,61 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
           </div>
         </div>
       ) : (
-        /* State 2: ยังไม่ได้เชื่อมต่อ (แสดงวิธีเชื่อมต่อ + คำสั่ง) */
+        /* State 2: ยังไม่ได้เชื่อมต่อ */
         <div className="rounded-2xl border border-border/40 bg-surface-2/70 p-4 space-y-3">
           <div>
             <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
-              ขั้นตอนการเชื่อมต่อ
+              เชื่อมต่อง่าย ๆ ใน 1 คลิก
             </span>
             <p className="text-xs text-text leading-relaxed mt-1">
-              1. เพิ่มเพื่อนกับ <b>LINE Official Account</b> ของคุณ<br />
-              2. คัดลอกข้อความด้านล่างนี้ แล้วส่งเข้าไปในห้องแชทของ LINE Bot:
+              กดปุ่มด้านล่างเพื่อเปิดแอป LINE และส่งคำสั่งเชื่อมต่อบัญชีเข้าแชทบอทได้ทันทีครับ:
             </p>
           </div>
 
-          {/* Code Copy Box */}
-          <div
-            onClick={handleCopy}
-            className="group flex items-center justify-between rounded-xl border border-border/60 bg-bg p-3 cursor-pointer transition-all hover:border-focus active:scale-[0.99]"
-            title="คลิกเพื่อคัดลอกคำสั่ง"
-          >
-            <div className="font-mono text-xs font-bold text-focus">
-              <span>{linkCommand}</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] font-bold text-focus">
-              {copied ? (
-                <>
-                  <span>✓</span>
-                  <span>คัดลอกแล้ว!</span>
-                </>
-              ) : (
-                <>
-                  <span>📋</span>
-                  <span className="group-hover:underline">กดคัดลอก</span>
-                </>
-              )}
+          {/* ปุ่มกดเชื่อมต่อเข้า LINE ทันที (One-Click Connect) */}
+          <div className="pt-1">
+            <a
+              href={directConnectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-h-[46px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+              </svg>
+              <span>กดเชื่อมต่อในแอป LINE ทันที</span>
+            </a>
+          </div>
+
+          {/* หรือคัดลอกคำสั่งด้วยตนเอง */}
+          <div className="pt-2 border-t border-border/30">
+            <span className="text-[10px] text-text-muted">หรือคัดลอกคำสั่งไปส่งในแชทด้วยตนเอง:</span>
+            <div
+              onClick={handleCopy}
+              className="group mt-1 flex items-center justify-between rounded-xl border border-border/60 bg-bg p-3 cursor-pointer transition-all hover:border-focus active:scale-[0.99]"
+              title="คลิกเพื่อคัดลอกคำสั่ง"
+            >
+              <div className="font-mono text-xs font-bold text-focus">
+                <span>{linkCommand}</span>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-bold text-focus">
+                {copied ? (
+                  <>
+                    <span>✓</span>
+                    <span>คัดลอกแล้ว!</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📋</span>
+                    <span className="group-hover:underline">กดคัดลอก</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <p className="text-[10px] text-text-muted leading-normal">
-            💡 เมื่อส่งคำสั่งแล้ว บอทจะตอบกลับยืนยันชื่อบัญชีของคุณ และหน้าต่างนี้จะเปลี่ยนสถานะเป็นเชื่อมต่อสำเร็จทันทีครับ
+            💡 เมื่อเชื่อมต่อแล้ว บอทจะแจ้งยืนยันชื่อบัญชีของคุณ และหน้าเว็บจะแสดงสถานะเชื่อมต่อสำเร็จทันทีครับ
           </p>
         </div>
       )}
