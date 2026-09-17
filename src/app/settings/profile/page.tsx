@@ -1,5 +1,6 @@
 import { SmoothLink } from "@/components/SmoothLink";
 import { createClient } from "@/lib/supabase/server";
+import ResetDataSection from "./ResetDataSection";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,7 @@ export default async function ProfilePage() {
             </dl>
           </section>
         )}
+        <ResetDataSection />
       </main>
     </div>
   );
