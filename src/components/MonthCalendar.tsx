@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCalendarData,
   type CalendarDayTotal,
@@ -11,44 +11,42 @@ import { useSmoothNavigate } from "@/lib/motion/useSmoothNavigate";
 import { toTimestamptz } from "@/lib/date";
 import { buildTransactionParams } from "@/lib/transaction-params";
 
-const MONTHS = [
-  "มกราคม",
-  "กุมภาพันธ์",
-  "มีนาคม",
-  "เมษายน",
-  "พฤษภาคม",
-  "มิถุนายน",
-  "กรกฎาคม",
-  "สิงหาคม",
-  "กันยายน",
-  "ตุลาคม",
-  "พฤศจิกายน",
-  "ธันวาคม",
-];
+// มาตรฐานเวลาสากลผ่าน ECMAScript Internationalization API (Intl)
+const BKK_TZ = "Asia/Bangkok";
+const THAI_BUDDHIST_LOCALE = "th-TH-u-ca-buddhist";
 
-const MONTHS_SHORT = [
-  "ม.ค.",
-  "ก.พ.",
-  "มี.ค.",
-  "เม.ย.",
-  "พ.ค.",
-  "มิ.ย.",
-  "ก.ค.",
-  "ส.ค.",
-  "ก.ย.",
-  "ต.ค.",
-  "พ.ย.",
-  "ธ.ค.",
-];
+const monthFormatter = new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, {
+  month: "long",
+  timeZone: BKK_TZ,
+});
 
-const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
-const BE = 543;
+const monthShortFormatter = new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, {
+  month: "short",
+  timeZone: BKK_TZ,
+});
+
+const yearFormatter = new Intl.DateTimeFormat(THAI_BUDDHIST_LOCALE, {
+  year: "numeric",
+  timeZone: BKK_TZ,
+});
+
+const weekdayShortFormatter = new Intl.DateTimeFormat("th-TH", {
+  weekday: "narrow",
+  timeZone: BKK_TZ,
+});
+
+// ดึงชื่อวันในสัปดาห์ 7 วันจากปฏิทินสากลโลก (อา-ส)
+const DOW = [0, 1, 2, 3, 4, 5, 6].map((dayOffset) => {
+  // 2026-09-06 คือวันอาทิตย์
+  const d = new Date(Date.UTC(2026, 8, 6 + dayOffset));
+  return weekdayShortFormatter.format(d);
+});
 
 type Props = {
   /** month string "YYYY-MM-01" */
   month: string;
   setMonth: (m: string) => void;
-  /** summary ของเดือนปัจจุบันที่กำลังดู (จาก useTransactions) */
+  /** summary ของเดือนปัจจุบันที่กำลังดู */
   summary: { income: number; expense: number; balance: number };
 };
 
@@ -60,7 +58,6 @@ type CalendarEntry = {
   cachedAt: number;
 };
 
-// แคชฝั่ง client — ลด refetch ตอนปุ่ม ‹ › และเปลี่ยนปีในมุมมองปี
 const calendarCache = new Map<string, CalendarEntry>();
 const CAL_CACHE_MAX = 4;
 const CAL_CACHE_STALE_MS = 60_000;
@@ -75,7 +72,6 @@ function writeCalendarCache(key: string, entry: CalendarEntry) {
   }
 }
 
-/** ฿ หลักสิบ/หลักพัน → "12", "1.2K" */
 function shortBaht(satang: number): string {
   const b = satang / 100;
   if (b < 1000) return String(Math.round(b));
@@ -95,10 +91,9 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** วันนี้ตามเวลา Asia/Bangkok */
 function getTodayParts(): { year: number; month: number; day: number } {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Bangkok",
+    timeZone: BKK_TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -110,13 +105,6 @@ function getTodayParts(): { year: number; month: number; day: number } {
   };
 }
 
-/**
- * ปฏิทินแบบ iOS Zoom (Design 7)
- * - ปุ่มกลางแสดงชื่อเดือน (มุมมองเดือน) หรือปี (มุมมองปี)
- * - แตะปุ่มกลาง → ซูมออกเป็นปี / ซูมเข้าเป็นเดือน
- * - คอลัมน์บนสุดของเดือน: รายรับ/รายจ่าย/คงเหลือของเดือนที่กำลังดู
- * - แตะวันไหน → ไป /transactions ที่ฟิลเตอร์วันนั้น
- */
 export default function MonthCalendar({ month, setMonth, summary }: Props) {
   const navigate = useSmoothNavigate();
   const [year, mnum] = month.split("-").map(Number);
@@ -125,6 +113,9 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
   const [zoom, setZoom] = useState(false);
   const [showYearPicker, setShowYearPicker] = useState(false);
   const [navYear, setNavYear] = useState(year);
+
+  const wheelRef = useRef<HTMLDivElement>(null);
+
   const [data, setData] = useState<CalendarEntry | null>(() => {
     const cached = calendarCache.get(`${year}-${month}`);
     return cached ? { ...cached } : null;
@@ -132,7 +123,17 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
 
   const effectiveYear = zoom ? navYear : year;
   const today = useMemo(() => getTodayParts(), []);
-  // ป้องกันการเลื่อนหน้าจอ (Body scroll lock) ขณะที่เปิดปฏิทินกางทับ
+
+  // เมื่อเปิดตัวเลื่อนปี iOS Scroll Wheel ให้เลื่อนกลิ้งไปที่ปีปัจจุบันอัตโนมัติ
+  useEffect(() => {
+    if (!showYearPicker || !wheelRef.current) return;
+    const targetElement = wheelRef.current.querySelector<HTMLElement>(`[data-year="${navYear}"]`);
+    if (targetElement) {
+      targetElement.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, [showYearPicker, navYear]);
+
+  // ล็อค Scroll ของหน้าจอฉากหลังเมื่อกางปฏิทิน
   useEffect(() => {
     if (!isExpanded) return;
     const originalOverflow = document.body.style.overflow;
@@ -145,14 +146,12 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
     };
   }, [isExpanded]);
 
-  // key ปัจจุบัน → ใช้แคชที่ mount ค้างไว้โดยไม่ต้อง setState ใน effect
   const key = `${effectiveYear}-${month}`;
   const displayData =
     data && data.year === effectiveYear && data.month === mnum
       ? data
       : calendarCache.get(key) ?? null;
 
-  // โหลดข้อมูล (ปี × เดือน) — refetch เงียบแม้ cached (เอา neighbors มา warm cache ด้วย)
   useEffect(() => {
     let active = true;
     const cached = calendarCache.get(key);
@@ -172,11 +171,8 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
           setData(entry);
         }
       })
-      .catch(() => {
-        // เน็ตหล่นตอน refetch เงียบ — คงของเก่าไว้
-      });
+      .catch(() => {});
 
-    // อุ่นเดือนข้างๆ ไว้ให้ปุ่ม ‹ › เปลี่ยนเดือนแบบไม่ต้องรอ
     for (const delta of [-1, 1]) {
       const ny = new Date(effectiveYear, mnum - 1 + delta, 1);
       const neighborYear = ny.getFullYear();
@@ -217,7 +213,6 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
     return map;
   }, [displayData]);
 
-  // ยอดรวมปีเมื่ออยู่ในมุมมองปี
   const yearIncome = useMemo(() => {
     if (!displayData) return null;
     let inc = 0;
@@ -229,12 +224,7 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
     return { income: inc, expense: exp, balance: inc - exp };
   }, [displayData]);
 
-  // ข้อมูลกริดเดือน
-  const dim = useMemo(
-    () => new Date(year, mnum, 0).getDate(),
-    [year, mnum]
-  );
-  // วันแรกของเดือนคือวันไหน (Bangkok) — ใช้ timezone ชัดเจนกันพลาดวัน
+  const dim = useMemo(() => new Date(year, mnum, 0).getDate(), [year, mnum]);
   const firstDOW = useMemo(() => {
     const instant = new Date(`${month}T00:00:00+07:00`);
     return instant.getUTCDay();
@@ -263,21 +253,29 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
 
   const strip = zoom ? yearIncome : summary;
 
+  // แปลงเดือนและปีผ่าน Intl ตามมาตรฐานโลก
+  const currentMonthDate = useMemo(() => new Date(year, mnum - 1, 1), [year, mnum]);
+  const navYearDate = useMemo(() => new Date(navYear, 0, 1), [navYear]);
+  const monthNameText = monthFormatter.format(currentMonthDate);
+  const yearText = yearFormatter.format(currentMonthDate);
+  const navYearText = yearFormatter.format(navYearDate);
+
   return (
     <div className={`relative ${isExpanded ? "z-[60]" : "z-30"}`}>
-      {/* Backdrop เบลอทั่วทั้งจอ (ครอบคลุมทับ TabBar z-50 และล็อคไม่ให้ฉากหลังเลื่อน) */}
+      {/* Backdrop เบลอทั่วจอ สไตล์ iOS Sheet */}
       {isExpanded && (
         <div
-          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md animate-in fade-in duration-300"
+          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
           onClick={() => {
             setIsExpanded(false);
             setZoom(false);
+            setShowYearPicker(false);
           }}
           aria-hidden="true"
         />
       )}
 
-      {/* Island Container — ขยายลอยทับเนื้อหาและเมนูบาร์ข้างล่างแบบ Dynamic Island */}
+      {/* Dynamic Island Capsule Container */}
       <div
         className={`relative z-[70] overflow-hidden bg-surface/95 backdrop-blur-2xl border border-white/20 dark:border-white/10 transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
           isExpanded
@@ -285,282 +283,282 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
             : "rounded-[26px] p-2.5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)]"
         }`}
       >
-      {/* Dynamic Header Row / Capsule Island */}
-      <div className="flex items-center justify-between gap-1.5">
-        <button
-          type="button"
-          onClick={prev}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2/80 text-sm font-semibold text-text shadow-sm transition-transform active:scale-85 hover:bg-surface-2"
-          aria-label={zoom ? "ปีก่อนหน้า" : "เดือนก่อนหน้า"}
-        >
-          ‹
-        </button>
+        {/* แถบหัวแคปซูล Dynamic Island */}
+        <div className="flex items-center justify-between gap-1.5">
+          <button
+            type="button"
+            onClick={prev}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2/80 text-sm font-semibold text-text shadow-sm transition-transform active:scale-85 hover:bg-surface-2"
+            aria-label={zoom ? "ปีก่อนหน้า" : "เดือนก่อนหน้า"}
+          >
+            ‹
+          </button>
 
-        {/* Capsule Center: Dynamic Island style pill */}
-        <button
-          type="button"
-          onClick={() => {
-            if (!isExpanded) {
-              setIsExpanded(true);
-            } else {
-              setZoom((z) => !z);
-            }
-          }}
-          className={`group flex items-center justify-center gap-2 rounded-full px-4 py-1.5 transition-all duration-300 active:scale-95 ${
-            isExpanded
-              ? "bg-focus/10 text-focus shadow-inner"
-              : "bg-surface-2/90 hover:bg-surface-2 text-text"
-          }`}
-        >
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1.5">
-              <span className="text-[14px] font-bold tracking-tight">
-                {isExpanded && zoom ? `${navYear + BE}` : MONTHS[mnum - 1]}
-              </span>
-              <span
-                className={`inline-block text-[10px] transition-transform duration-300 ${
-                  isExpanded ? (zoom ? "rotate-90" : "rotate-180") : "rotate-0 text-text-muted"
-                }`}
-              >
-                ▾
-              </span>
-            </div>
-            <small className="block text-[9px] font-medium text-text-muted opacity-80">
-              {!isExpanded
-                ? `${year + BE} · แตะเปิดปฏิทิน`
-                : zoom
-                ? "แตะเพื่อดูเดือน"
-                : `${year + BE} · ซูมดูทั้งปี`}
-            </small>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={next}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2/80 text-sm font-semibold text-text shadow-sm transition-transform active:scale-85 hover:bg-surface-2"
-          aria-label={zoom ? "ปีถัดไป" : "เดือนถัดไป"}
-        >
-          ›
-        </button>
-      </div>
-      {/* แถบสรุปยอด */}
-      {/* Summary Chips (iOS Segmented / Island Stats) */}
-      <div className="mt-2.5 grid grid-cols-3 gap-1.5">
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
-          <span className="text-[9px] font-medium text-text-muted">รายรับ</span>
-          <span className="text-xs font-bold text-income tabular-nums">
-            +{formatSatang(strip?.income ?? 0)}
-          </span>
-        </div>
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
-          <span className="text-[9px] font-medium text-text-muted">รายจ่าย</span>
-          <span className="text-xs font-bold text-expense tabular-nums">
-            −{formatSatang(strip?.expense ?? 0)}
-          </span>
-        </div>
-        <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
-          <span className="text-[9px] font-medium text-text-muted">คงเหลือ</span>
-          <span
-            className={`text-xs font-bold tabular-nums ${
-              (strip?.balance ?? 0) >= 0 ? "text-balance" : "text-expense"
+          {/* ปุ่มกลางรูปทรงแคปซูลเกาะไดนามิก */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!isExpanded) {
+                setIsExpanded(true);
+              } else {
+                setZoom((z) => !z);
+              }
+            }}
+            className={`group flex items-center justify-center gap-2 rounded-full px-4 py-1.5 transition-all duration-300 active:scale-95 ${
+              isExpanded
+                ? "bg-focus/10 text-focus shadow-inner"
+                : "bg-surface-2/90 hover:bg-surface-2 text-text"
             }`}
           >
-            {(strip?.balance ?? 0) >= 0 ? "+" : ""}
-            {formatSatang(strip?.balance ?? 0)}
-          </span>
-        </div>
-      </div>
-      {isExpanded && (
-        <div className="mt-3 border-t border-border/40 pt-2.5 animate-in fade-in zoom-in-95 duration-250">
-          <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
-            {/* ปุ่มซ้าย: ซูมสลับ 12 เดือน / ปฏิทินวัน */}
-            <button
-              type="button"
-              onClick={() => setZoom((z) => !z)}
-              className="flex items-center gap-1 rounded-full bg-focus/10 px-2.5 py-1 text-[11px] font-bold text-focus transition-all active:scale-95 hover:bg-focus/20"
-            >
-              <span>{zoom ? "📅 ปฏิทินวัน" : "🔍 12 เดือน"}</span>
-            </button>
-
-            {/* ปุ่มกลาง: กะทัดรัด แตะเปิดตัวหมุนปี iOS Wheel */}
-            <button
-              type="button"
-              onClick={() => setShowYearPicker((p) => !p)}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold transition-all active:scale-95 shadow-xs ${
-                showYearPicker
-                  ? "bg-focus text-white"
-                  : "bg-surface-2 text-text hover:bg-surface-2/80"
-              }`}
-              title="แตะเพื่อหมุนเลื่อนเลือกปีแบบ iOS"
-            >
-              <span>พ.ศ. {navYear + BE}</span>
-              <span className="text-[9px] opacity-70">▾</span>
-            </button>
-
-            {/* ปุ่มขวา: พับเก็บ */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsExpanded(false);
-                setZoom(false);
-                setShowYearPicker(false);
-              }}
-              className="flex items-center gap-1 rounded-full bg-surface-2/80 px-2.5 py-1 text-[11px] font-medium text-text-muted hover:text-text active:scale-95 transition-all"
-            >
-              <span>พับเก็บ ✕</span>
-            </button>
-          </div>
-
-          {/* iOS Drum Wheel Popover / Dropdown (กะทัดรัด สวยหรู สไตล์ iOS DatePicker) */}
-          {showYearPicker && (
-            <div className="mb-3 rounded-2xl border border-focus/20 bg-surface-2/90 p-2.5 shadow-lg backdrop-blur-xl animate-in zoom-in-95 duration-200">
-              <div className="flex items-center justify-between px-2 mb-1">
-                <span className="text-[10px] font-semibold text-text-muted">หมุนเลื่อนขึ้น-ลงเพื่อเลือกปี</span>
-                <button
-                  type="button"
-                  onClick={() => setShowYearPicker(false)}
-                  className="text-[10px] font-bold text-focus hover:underline"
-                >
-                  เสร็จสิ้น ✓
-                </button>
-              </div>
-              <div
-                className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
-                tabIndex={0}
-                aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
-              >
-                <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/15 border-y border-focus/30" />
-                {Array.from({ length: 31 }, (_, i) => {
-                  const y = today.year - 15 + i;
-                  const isSelected = y === navYear;
-                  const thaiYearText = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
-                    year: "numeric",
-                  }).format(new Date(y, 0, 1));
-
-                  return (
-                    <div
-                      key={y}
-                      onClick={() => {
-                        setNavYear(y);
-                      }}
-                      className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
-                        isSelected
-                          ? "scale-110 text-sm font-extrabold text-focus"
-                          : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
-                      }`}
-                    >
-                      {thaiYearText} ({y})
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {/* stage — 2 มุมมองซ้อนกัน ซูมสลับ สไตล์ iOS (cubic-bezier transition) */}
-          <div className="relative overflow-hidden">
-        <div
-          className={`transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-            zoom
-              ? "pointer-events-none absolute inset-0 -translate-y-2.5 scale-125 opacity-0"
-              : "scale-100 opacity-100"
-          }`}
-        >
-          <div className="grid grid-cols-7">
-            {DOW.map((d) => (
-              <div
-                key={d}
-                className="py-1 text-center text-[10px] font-semibold text-text-muted"
-              >
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-0.5">
-            {Array.from({ length: firstDOW }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[46px]" />
-            ))}
-            {Array.from({ length: dim }, (_, i) => {
-              const d = i + 1;
-              const totals = daysMap.get(d);
-              const isToday = isCurrentMonth && today.day === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => openDay(d)}
-                  className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[10px] px-0.5 transition-colors active:bg-border ${
-                    isToday ? "bg-focus/10" : ""
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="text-[14px] font-bold tracking-tight">
+                  {isExpanded && zoom ? navYearText : monthNameText}
+                </span>
+                <span
+                  className={`inline-block text-[10px] transition-transform duration-300 ${
+                    isExpanded ? (zoom ? "rotate-90" : "rotate-180") : "rotate-0 text-text-muted"
                   }`}
                 >
-                  <span className="text-xs font-semibold text-text">{d}</span>
-                  {totals && totals.income > 0 && (
-                    <span className="text-[9px] font-bold text-income">
-                      +{shortBaht(totals.income)}
-                    </span>
-                  )}
-                  {totals && totals.expense > 0 && (
-                    <span className="text-[9px] font-bold text-expense">
-                      −{shortBaht(totals.expense)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  ▾
+                </span>
+              </div>
+              <small className="block text-[9px] font-medium text-text-muted opacity-80">
+                {!isExpanded
+                  ? `${yearText} · แตะเปิดปฏิทิน`
+                  : zoom
+                  ? "แตะเพื่อดูรายวัน"
+                  : `${yearText} · ซูมดูทั้งปี`}
+              </small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={next}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2/80 text-sm font-semibold text-text shadow-sm transition-transform active:scale-85 hover:bg-surface-2"
+            aria-label={zoom ? "ปีถัดไป" : "เดือนถัดไป"}
+          >
+            ›
+          </button>
+        </div>
+
+        {/* ชิปแสดงสถิติ 3 ช่อง (รายรับ/รายจ่าย/คงเหลือ) */}
+        <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
+            <span className="text-[9px] font-medium text-text-muted">รายรับ</span>
+            <span className="text-xs font-bold text-income tabular-nums">
+              +{formatSatang(strip?.income ?? 0)}
+            </span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
+            <span className="text-[9px] font-medium text-text-muted">รายจ่าย</span>
+            <span className="text-xs font-bold text-expense tabular-nums">
+              −{formatSatang(strip?.expense ?? 0)}
+            </span>
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-surface-2/60 px-2 py-1.5 transition-all hover:bg-surface-2">
+            <span className="text-[9px] font-medium text-text-muted">คงเหลือ</span>
+            <span
+              className={`text-xs font-bold tabular-nums ${
+                (strip?.balance ?? 0) >= 0 ? "text-balance" : "text-expense"
+              }`}
+            >
+              {(strip?.balance ?? 0) >= 0 ? "+" : ""}
+              {formatSatang(strip?.balance ?? 0)}
+            </span>
           </div>
         </div>
 
-        {/* มุมมองปี — แถบเปลี่ยนปีชัดเจน */}
-        <div
-          className={`transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-            zoom
-              ? "scale-100 opacity-100"
-              : "pointer-events-none absolute inset-0 translate-y-3.5 scale-75 opacity-0"
-          }`}
-        >
+        {/* ส่วนปฏิทินเมื่อขยาย (Expanded Content) */}
+        {isExpanded && (
+          <div className="mt-3 border-t border-border/40 pt-2.5 animate-in fade-in zoom-in-95 duration-250">
+            {/* แถบควบคุม: สลับ 12 เดือน | ปุ่มหมุนปีแบบ iOS ตรงกลาง | พับเก็บ */}
+            <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+              <button
+                type="button"
+                onClick={() => setZoom((z) => !z)}
+                className="flex items-center gap-1 rounded-full bg-focus/10 px-2.5 py-1 text-[11px] font-bold text-focus transition-all active:scale-95 hover:bg-focus/20"
+              >
+                <span>{zoom ? "📅 ปฏิทินวัน" : "🔍 12 เดือน"}</span>
+              </button>
 
-          <div className="grid grid-cols-3 gap-2 pt-0.5">
-            {Array.from({ length: 12 }, (_, i) => {
-              const m = i + 1;
-              const totals = monthsMap.get(m);
-              const isCurrent = navYear === year && m === mnum;
-              const isTodayMonth =
-                today.year === navYear && today.month === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    setMonth(`${navYear}-${pad2(m)}-01`);
-                    setZoom(false);
-                  }}
-                  className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 transition-all active:opacity-70 ${
-                    isCurrent
-                      ? "border-focus bg-focus/10"
-                      : "border-border bg-surface"
-                  } ${isTodayMonth ? "shadow-[inset_0_0_0_2px_#fbbf24]" : ""}`}
+              {/* ปุ่มเลือกล้อปี iOS Wheel กลางแถบ */}
+              <button
+                type="button"
+                onClick={() => setShowYearPicker((p) => !p)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold transition-all active:scale-95 shadow-xs ${
+                  showYearPicker
+                    ? "bg-focus text-white"
+                    : "bg-surface-2 text-text hover:bg-surface-2/80"
+                }`}
+                title="แตะเพื่อหมุนเลื่อนเลือกปีแบบ iOS"
+              >
+                <span>{navYearText}</span>
+                <span className="text-[9px] opacity-70">▾</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsExpanded(false);
+                  setZoom(false);
+                  setShowYearPicker(false);
+                }}
+                className="flex items-center gap-1 rounded-full bg-surface-2/80 px-2.5 py-1 text-[11px] font-medium text-text-muted hover:text-text active:scale-95 transition-all"
+              >
+                <span>พับเก็บ ✕</span>
+              </button>
+            </div>
+
+            {/* iOS Drum Wheel Picker Dropdown Card */}
+            {showYearPicker && (
+              <div className="mb-3 rounded-2xl border border-focus/20 bg-surface-2/90 p-2.5 shadow-lg backdrop-blur-xl animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between px-2 mb-1">
+                  <span className="text-[10px] font-semibold text-text-muted">
+                    หมุนเลื่อนขึ้น-ลงเพื่อเลือกปี (Intl Wheel)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowYearPicker(false)}
+                    className="text-[10px] font-bold text-focus hover:underline"
+                  >
+                    เสร็จสิ้น ✓
+                  </button>
+                </div>
+
+                <div
+                  ref={wheelRef}
+                  className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
+                  tabIndex={0}
+                  aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
                 >
-                  <span className="text-xs font-bold text-text">
-                    {MONTHS_SHORT[m - 1]}
-                  </span>
-                  <span className="text-[10px] font-bold text-expense tabular-nums">
-                    {totals && totals.expense > 0
-                      ? "−" + shortBaht(totals.expense)
-                      : "—"}
-                  </span>
-                  {totals && totals.income > 0 && (
-                    <span className="text-[10px] font-bold text-income tabular-nums">
-                      +{shortBaht(totals.income)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                  <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/15 border-y border-focus/30" />
+                  {Array.from({ length: 41 }, (_, i) => {
+                    const y = today.year - 20 + i;
+                    const isSelected = y === navYear;
+                    const thaiYear = yearFormatter.format(new Date(y, 0, 1));
+
+                    return (
+                      <div
+                        key={y}
+                        data-year={y}
+                        onClick={() => setNavYear(y)}
+                        className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
+                          isSelected
+                            ? "scale-110 text-sm font-extrabold text-focus"
+                            : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
+                        }`}
+                      >
+                        {thaiYear} ({y})
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* stage — สลับมุมมองเดือน/ปี สไตล์ iOS (cubic-bezier) */}
+            <div className="relative overflow-hidden">
+              {/* มุมมองเดือน */}
+              <div
+                className={`transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                  zoom
+                    ? "pointer-events-none absolute inset-0 -translate-y-2.5 scale-125 opacity-0"
+                    : "scale-100 opacity-100"
+                }`}
+              >
+                <div className="grid grid-cols-7">
+                  {DOW.map((d) => (
+                    <div
+                      key={d}
+                      className="py-1 text-center text-[10px] font-semibold text-text-muted"
+                    >
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {Array.from({ length: firstDOW }).map((_, i) => (
+                    <div key={`empty-${i}`} className="min-h-[46px]" />
+                  ))}
+                  {Array.from({ length: dim }, (_, i) => {
+                    const d = i + 1;
+                    const totals = daysMap.get(d);
+                    const isToday = isCurrentMonth && today.day === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => openDay(d)}
+                        className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[10px] px-0.5 transition-colors active:bg-border ${
+                          isToday ? "bg-focus/10" : ""
+                        }`}
+                      >
+                        <span className="text-xs font-semibold text-text">{d}</span>
+                        {totals && totals.income > 0 && (
+                          <span className="text-[9px] font-bold text-income">
+                            +{shortBaht(totals.income)}
+                          </span>
+                        )}
+                        {totals && totals.expense > 0 && (
+                          <span className="text-[9px] font-bold text-expense">
+                            −{shortBaht(totals.expense)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* มุมมองปี */}
+              <div
+                className={`transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                  zoom
+                    ? "scale-100 opacity-100"
+                    : "pointer-events-none absolute inset-0 translate-y-3.5 scale-75 opacity-0"
+                }`}
+              >
+                <div className="grid grid-cols-3 gap-2 pt-0.5">
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const m = i + 1;
+                    const totals = monthsMap.get(m);
+                    const isCurrent = navYear === year && m === mnum;
+                    const isTodayMonth = today.year === navYear && today.month === m;
+                    const shortName = monthShortFormatter.format(new Date(navYear, m - 1, 1));
+
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setMonth(`${navYear}-${pad2(m)}-01`);
+                          setZoom(false);
+                        }}
+                        className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 transition-all active:opacity-70 ${
+                          isCurrent
+                            ? "border-focus bg-focus/10"
+                            : "border-border bg-surface"
+                        } ${isTodayMonth ? "shadow-[inset_0_0_0_2px_#fbbf24]" : ""}`}
+                      >
+                        <span className="text-xs font-bold text-text">{shortName}</span>
+                        <span className="text-[10px] font-bold text-expense tabular-nums">
+                          {totals && totals.expense > 0 ? "−" + shortBaht(totals.expense) : "—"}
+                        </span>
+                        {totals && totals.income > 0 && (
+                          <span className="text-[10px] font-bold text-income tabular-nums">
+                            +{shortBaht(totals.income)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        </div>
-      </div>
-      )}
+        )}
       </div>
     </div>
   );
