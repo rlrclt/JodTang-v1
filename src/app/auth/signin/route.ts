@@ -20,14 +20,16 @@ export async function GET(request: Request) {
   // callback URL ชี้กลับมาที่ /auth/callback
   const callbackUrl = `${origin}/auth/callback`;
 
+  // Supabase Custom OIDC provider ต้องส่งในรูปแบบ "custom:identifier" เช่น "custom:line"
+  const oauthProvider = provider === "line" ? "custom:line" : provider;
+
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: provider as any,
+    provider: oauthProvider as any,
     options: {
       redirectTo: callbackUrl,
-      scopes: provider === "line" ? "profile openid email" : undefined,
+      scopes: provider === "line" ? "openid profile email" : undefined,
     },
   });
-
   if (error || !data?.url) {
     console.error("signInWithOAuth error:", error);
     return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
