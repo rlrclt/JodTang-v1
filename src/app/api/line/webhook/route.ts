@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
 
   // ลิงก์ LIFF สำหรับเชื่อมบัญชี (public ID — ไม่ใช่ secret)
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  const liffId =
+    process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
   const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
   const linkButtonMessage = liffUrl
     ? [

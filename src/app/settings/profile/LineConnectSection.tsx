@@ -16,8 +16,9 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
 
   const isConnected = Boolean(lineUserId);
 
-  // LIFF URL (public ID — ไม่ใช่ secret) ถ้ายังไม่ตั้งให้ชวนแอดมินตั้งค่า
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+  // LIFF ID เป็นค่า public — ใช้ env ถ้ามี ไม่งั้นใช้ค่าดีฟอลต์ของโปรเจกต์
+  const liffId =
+    process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
   const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
 
   const handleUnlink = async () => {

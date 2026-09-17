@@ -8,9 +8,11 @@ import { createLineLinkToken } from "../actions";
  * LIFF Link Page — เปิดในแอป LINE เท่านั้น
  * URL: https://liff.line.me/{LIFF_ID}
  *
+ * LIFF ID เป็นค่า public (อยู่ใน URL) — ใช้ env ถ้ามี ไม่งั้นใช้ค่าดีฟอลต์ของโปรเจกต์
  * flow: liff.init() → liff.login() (ถ้ายัง) → getProfile()
  * → สร้าง link-token → redirect ไป /line/claim?token=xxx ในเบราว์เซอร์
  */
+const DEFAULT_LIFF_ID = "2011649062-neOljV8x";
 export default function LiffLinkPage() {
   const [status, setStatus] = useState<"loading" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
@@ -18,7 +20,8 @@ export default function LiffLinkPage() {
 
   useEffect(() => {
     async function initLiff() {
-      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      const liffId =
+        process.env.NEXT_PUBLIC_LIFF_ID || DEFAULT_LIFF_ID;
       if (!liffId) {
         setStatus("error");
         setErrorMsg("ยังไม่ได้ตั้งค่า NEXT_PUBLIC_LIFF_ID ติดต่อแอดมินครับ");
