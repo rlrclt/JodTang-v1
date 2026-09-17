@@ -54,6 +54,61 @@ describe("TransactionItem", () => {
     );
   });
 });
+describe("TransactionDetailSheet", () => {
+  it("includes update, delete, and editable fields for quick editing", async () => {
+    const fs = await import("node:fs/promises");
+    const content = await fs.readFile(
+      "src/components/TransactionDetailSheet.tsx",
+      "utf-8"
+    );
+    assert.ok(
+      content.includes("updateTransaction"),
+      "TransactionDetailSheet ต้องเรียก updateTransaction"
+    );
+    assert.ok(
+      content.includes("deleteTransaction"),
+      "TransactionDetailSheet ต้องเรียก deleteTransaction"
+    );
+    assert.ok(
+      content.includes("showDeleteConfirm"),
+      "TransactionDetailSheet ต้องมีการยืนยันก่อนลบ"
+    );
+    assert.ok(
+      content.includes("amountBaht") || content.includes("setAmountBaht"),
+      "TransactionDetailSheet ต้องให้แก้จำนวนเงินได้"
+    );
+  });
+
+  it("is connected to TransactionPageClient via on_click", async () => {
+    const fs = await import("node:fs/promises");
+    const content = await fs.readFile(
+      "src/app/transactions/TransactionPageClient.tsx",
+      "utf-8"
+    );
+    assert.ok(
+      content.includes("TransactionDetailSheet"),
+      "TransactionPageClient ต้องมี TransactionDetailSheet"
+    );
+    assert.ok(
+      content.includes("setSelectedTx"),
+      "TransactionPageClient ต้องมี state เลือกรายการเพื่อเปิด sheet"
+    );
+  });
+
+  it("is connected to HomePage via HomeTransactionItem onClick", async () => {
+    const fs = await import("node:fs/promises");
+    const content = await fs.readFile("src/app/page.tsx", "utf-8");
+    assert.ok(
+      content.includes("TransactionDetailSheet"),
+      "HomePage ต้องมี TransactionDetailSheet"
+    );
+    assert.ok(
+      content.includes("setSelectedTx"),
+      "HomePage ต้องมี state เลือกรายการเพื่อเปิด sheet"
+    );
+  });
+});
+
 
 describe("MonthSelector", () => {
   it("has prev/next navigation buttons", async () => {

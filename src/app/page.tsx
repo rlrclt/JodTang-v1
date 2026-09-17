@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useTransactions } from "@/components/TransactionsProvider";
 import BalanceCard from "@/components/BalanceCard";
 import HomeTransactionItem from "@/components/HomeTransactionItem";
+import TransactionDetailSheet from "@/components/TransactionDetailSheet";
+import type { TransactionItem } from "@/hooks/useTransactionsHook";
 import { formatSatang } from "@/lib/format-satang";
 import { SmoothLink } from "@/components/SmoothLink";
 
@@ -36,6 +39,7 @@ export default function HomePage() {
     error,
     refresh,
   } = useTransactions();
+  const [selectedTx, setSelectedTx] = useState<TransactionItem | null>(null);
 
   const handlePrev = () => setMonth(shiftMonth(month, -1));
   const handleNext = () => setMonth(shiftMonth(month, 1));
@@ -153,10 +157,22 @@ export default function HomePage() {
           </h2>
           <ul className="rounded-2xl bg-surface">
             {transactions.map((tx) => (
-              <HomeTransactionItem key={tx.id} transaction={tx} />
+              <HomeTransactionItem
+                key={tx.id}
+                transaction={tx}
+                onClick={() => setSelectedTx(tx)}
+              />
             ))}
           </ul>
         </>
+      )}
+      {selectedTx && (
+        <TransactionDetailSheet
+          transaction={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          onUpdated={refresh}
+          onDeleted={refresh}
+        />
       )}
     </div>
   );

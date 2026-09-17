@@ -40,9 +40,13 @@ function shortDate(isoDate: string): string {
 
 type Props = {
   transaction: TxItem;
+  onClick?: () => void;
 };
 
-export default function TransactionItemComponent({ transaction }: Props) {
+export default function TransactionItemComponent({
+  transaction,
+  onClick,
+}: Props) {
   const tx = transaction;
   const sign = tx.kind === "expense" ? "−" : tx.kind === "income" ? "+" : "";
   const categoryName = tx.categories?.name ?? "ไม่มีหมวด";
@@ -50,37 +54,43 @@ export default function TransactionItemComponent({ transaction }: Props) {
   const toAccountName = tx.to_accounts?.name ?? "";
 
   return (
-    <li className="flex items-center gap-3 border-b border-border px-4 py-3">
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-surface text-lg">
-        {tx.categories ? <CategoryIcon icon={tx.categories.icon} /> : "💰"}
-      </div>
-
-      {/* รายละเอียด */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium">{categoryName}</span>
-          <span
-            className={`flex-shrink-0 text-sm font-semibold tabular-nums ${kindColor(tx.kind)}`}
-            style={{ fontVariantNumeric: "tabular-nums" }}
-          >
-            {sign}
-            {formatSatang(tx.amount)}
-          </span>
+    <li className="border-b border-border last:border-b-0">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/40 active:bg-surface-2"
+      >
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-surface text-lg">
+          {tx.categories ? <CategoryIcon icon={tx.categories.icon} /> : "💰"}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
-          <span>{kindLabel(tx.kind)}</span>
-          {tx.kind === "transfer" && toAccountName && (
-            <span>→ {toAccountName}</span>
-          )}
-          {accountName && <span>· {accountName}</span>}
-          {tx.note && <span className="truncate">· {tx.note}</span>}
-        </div>
-      </div>
 
-      {/* วันที่ */}
-      <span className="flex-shrink-0 text-xs text-text-muted">
-        {shortDate(tx.occurred_at)}
-      </span>
+        {/* รายละเอียด */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-sm font-medium">{categoryName}</span>
+            <span
+              className={`flex-shrink-0 text-sm font-semibold tabular-nums ${kindColor(tx.kind)}`}
+              style={{ fontVariantNumeric: "tabular-nums" }}
+            >
+              {sign}
+              {formatSatang(tx.amount)}
+            </span>
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
+            <span>{kindLabel(tx.kind)}</span>
+            {tx.kind === "transfer" && toAccountName && (
+              <span>→ {toAccountName}</span>
+            )}
+            {accountName && <span>· {accountName}</span>}
+            {tx.note && <span className="truncate">· {tx.note}</span>}
+          </div>
+        </div>
+
+        {/* วันที่ */}
+        <span className="flex-shrink-0 text-xs text-text-muted">
+          {shortDate(tx.occurred_at)}
+        </span>
+      </button>
     </li>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import TransactionItem from "@/components/TransactionItem";
+import TransactionDetailSheet from "@/components/TransactionDetailSheet";
 import BalanceCard from "@/components/BalanceCard";
 import MonthSelector from "@/components/MonthSelector";
 import FilterBar from "@/components/FilterBar";
@@ -52,6 +53,7 @@ export default function TransactionPageClient({
   const [cursor, setCursor] = useState<Cursor>(initialCursor);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTx, setSelectedTx] = useState<TransactionRow | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // โหลดหน้าถัดไป (keyset)
@@ -128,6 +130,7 @@ export default function TransactionPageClient({
                 account_name={item.accounts?.name ?? null}
                 to_account_name={item.to_accounts?.name ?? null}
                 occurred_at={item.occurred_at}
+                on_click={() => setSelectedTx(item)}
               />
             ))}
           </>
@@ -148,6 +151,20 @@ export default function TransactionPageClient({
           </div>
         )}
       </div>
+
+      {selectedTx && (
+        <TransactionDetailSheet
+          transaction={selectedTx}
+          onClose={() => setSelectedTx(null)}
+          onUpdated={() => {
+            window.location.reload();
+          }}
+          onDeleted={() => {
+            setItems((prev) => prev.filter((it) => it.id !== selectedTx.id));
+            setSelectedTx(null);
+          }}
+        />
+      )}
     </div>
   );
 }
