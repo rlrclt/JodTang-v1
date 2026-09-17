@@ -28,7 +28,9 @@ export async function GET(request: Request) {
     provider: oauthProvider as any,
     options: {
       redirectTo: callbackUrl,
-      scopes: provider === "line" ? "openid profile email" : undefined,
+      // LINE: ขอแค่ openid+profile — scope email ต้องยื่นขอสิทธิ์กับ LINE ก่อน
+      // ถ้าขอ email ทั้งที่ channel ยังไม่ได้รับอนุมัติ /authorize จะตอบ 400
+      scopes: provider === "line" ? "openid profile" : undefined,
     },
   });
 
