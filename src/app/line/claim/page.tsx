@@ -106,12 +106,14 @@ function ClaimContent() {
           {result.status === "need-login" && (
             <>
               <p className="text-sm text-[#616B7A]">{result.message}</p>
-              <Link
+              {/* plain <a> — ห้ามใช้ <Link> เพราะ /auth/signin ตอบ redirect
+                  ข้าม origin (<Link> จะ fetch ตาม redirect แล้วโดน CORS) */}
+              <a
                 href={signinHref}
                 className="flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-[#101828] px-4 py-3 text-sm font-bold text-white transition-all hover:opacity-90 active:scale-[0.99]"
               >
                 เข้าสู่ระบบด้วย Google
-              </Link>
+              </a>
             </>
           )}
 

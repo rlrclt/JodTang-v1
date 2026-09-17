@@ -12,6 +12,7 @@ type Props = {
 
 export default function LineConnectSection({ email, name, lineUserId }: Props) {
   const [unlinking, setUnlinking] = useState(false);
+  const [unlinkError, setUnlinkError] = useState<string | null>(null);
   const router = useRouter();
 
   const isConnected = Boolean(lineUserId);
@@ -26,8 +27,13 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
   const handleUnlink = async () => {
     if (!confirm("ต้องการยกเลิกการเชื่อมต่อกับ LINE Bot ใช่หรือไม่?")) return;
     setUnlinking(true);
+    setUnlinkError(null);
     try {
-      await unlinkLineAccount();
+      const res = await unlinkLineAccount();
+      if (res.error) {
+        setUnlinkError(res.error);
+        return;
+      }
       router.refresh();
     } finally {
       setUnlinking(false);
@@ -87,6 +93,11 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
               {unlinking ? "กำลังยกเลิก..." : "ยกเลิกการเชื่อมต่อ"}
             </button>
           </div>
+          {unlinkError && (
+            <p role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold text-amber-700">
+              ⚠️ {unlinkError}
+            </p>
+          )}
         </div>
       ) : (
         /* State 2: ยังไม่ได้เชื่อมต่อ — กดปุ่มเดียว */
