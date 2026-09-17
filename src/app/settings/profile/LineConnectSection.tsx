@@ -102,8 +102,6 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
             {liffUrl ? (
               <a
                 href={liffUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
               >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">

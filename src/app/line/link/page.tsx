@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import liff from "@line/liff";
 import { createLineLinkToken } from "../actions";
 
@@ -13,7 +12,6 @@ import { createLineLinkToken } from "../actions";
  * → สร้าง link-token → redirect ไป /line/claim?token=xxx ในเบราว์เซอร์
  */
 export default function LiffLinkPage() {
-  const router = useRouter();
   const [status, setStatus] = useState<"loading" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [redirecting, setRedirecting] = useState(false);
@@ -47,9 +45,12 @@ export default function LiffLinkPage() {
           return;
         }
 
-        // LIFF รันบน origin เดียวกับแอป (Endpoint URL) → ใช้ relative path ได้
+        // ต้องใช้ absolute URL + full navigation เพื่อหลุดออกจาก LIFF webview
+        // กลับไปเบราว์เซอร์ปกติ (router.push แบบ relative จะค้างอยู่ใน liff.line.me)
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
         setRedirecting(true);
-        router.push(`/line/claim?token=${token}`);
+        window.location.href = `${appUrl}/line/claim?token=${token}`;
       } catch (err: any) {
         setStatus("error");
         setErrorMsg(err?.message ?? "LIFF init ล้มเหลว");
@@ -57,7 +58,7 @@ export default function LiffLinkPage() {
     }
 
     initLiff();
-  }, [router]);
+  }, []);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
