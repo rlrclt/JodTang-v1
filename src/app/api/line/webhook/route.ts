@@ -27,13 +27,13 @@ export async function POST(req: NextRequest) {
 
   // ถ้ายังไม่ได้ตั้งค่า Secret/Token บน Vercel ให้ตอบ 200 เพื่อให้ปุ่ม Verify ของ LINE ผ่านฉลุยก่อน
   if (!channelSecret || !channelAccessToken) {
-    console.warn("LINE_CHANNEL_SECRET or LINE_CHANNEL_ACCESS_TOKEN not yet set in Vercel environment.");
-    return NextResponse.json({ message: "LINE Webhook endpoint active (Waiting for credentials)" }, { status: 200 });
+    console.error("Missing LINE_CHANNEL_SECRET or LINE_CHANNEL_ACCESS_TOKEN");
+    return NextResponse.json({ error: "Server not configured for LINE" }, { status: 200 });
   }
 
   // ตรวจสอบความถูกต้องของ Signature
   if (!verifyLineSignature(rawBody, signature, channelSecret)) {
-    // หากเป็น Verify Request จาก LINE Developers Console (events ว่าง) ให้รับรอง 200
+    // ตรวจสอบ fallback: หากเป็น Verify Request จาก LINE Developers Console ตอบ 200 ทันที
     try {
       const parsed = JSON.parse(rawBody);
       if (Array.isArray(parsed.events) && parsed.events.length === 0) {
@@ -51,61 +51,16 @@ export async function POST(req: NextRequest) {
   }
 
   const events: LineEvent[] = body.events || [];
-  // ถ้าเป็น Verify Request ที่ events เป็น array ว่าง ตอบ 200 ทันที
   if (events.length === 0) {
     return NextResponse.json({ message: "OK" }, { status: 200 });
   }
   const supabase = getSupabaseAdmin();
 
-  // ลิงก์ LIFF สำหรับเชื่อมบัญชี (public ID — ไม่ใช่ secret)
-  const liffId =
-    process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
-  const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
-  const linkButtonMessage = liffUrl
-    ? [
-        {
-          type: "template",
-          altText: "กดเชื่อมต่อบัญชี JodTang",
-          template: {
-            type: "buttons",
-            text: "เชื่อมต่อบัญชี JodTang เพื่อเริ่มส่งสลิป",
-            actions: [{ type: "uri", label: "เชื่อมต่อบัญชี", uri: liffUrl }],
-          },
-        },
-      ]
-    : [];
-
   // 2. ประมวลผลแต่ละ Event
   for (const event of events) {
+    if (event.type !== "message") continue;
     const lineUserId = event.source.userId;
     if (!lineUserId) continue;
-
-    // ── follow: เพิ่มบอทเป็นเพื่อน → ต้อนรับ + ปุ่มเชื่อมบัญชี ──
-    if (event.type === "follow") {
-      await replyLineMessage(
-        event.replyToken,
-        [
-          {
-            type: "text",
-            text: `👋 สวัสดีครับ! ยินดีต้อนรับสู่ JodTang\n\nกดปุ่มด้านล่างเพื่อเชื่อมต่อบัญชี แล้วส่งรูปสลิปมาให้ AI ลงบัญชีอัตโนมัติได้ทันทีครับ ✨`,
-          },
-          ...linkButtonMessage,
-        ],
-        channelAccessToken
-      );
-      continue;
-    }
-
-    // ── unfollow: บล็อกบอท → ล้าง line_user_id (ตอบกลับไม่ได้ ไม่มี reply) ──
-    if (event.type === "unfollow") {
-      await supabase
-        .from("profiles")
-        .update({ line_user_id: null })
-        .eq("line_user_id", lineUserId);
-      continue;
-    }
-
-    if (event.type !== "message") continue;
 
     // หาผู้ใช้ใน JodTang จาก line_user_id
     const { data: profile } = await supabase
@@ -114,11 +69,31 @@ export async function POST(req: NextRequest) {
       .eq("line_user_id", lineUserId)
       .maybeSingle();
 
-    // ── กรณีที่ 1: ผู้ใช้ส่งข้อความ Text เพื่อเชื่อมบัญชี ──
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
+    const liffUrl = `https://liff.line.me/${liffId}`;
+    const linkButtonMessage = [
+      {
+        type: "template",
+        altText: "กดเชื่อมต่อบัญชี JodTang",
+        template: {
+          type: "buttons",
+          text: "แตะปุ่มด้านล่างเพื่อผูกบัญชี LINE กับ JodTang ใน 1 คลิกครับ:",
+          actions: [
+            {
+              type: "uri",
+              label: "เชื่อมต่อบัญชี JodTang",
+              uri: liffUrl,
+            },
+          ],
+        },
+      },
+    ];
+
+    // ── กรณีที่ 1: ผู้ใช้ส่งข้อความ Text ──
     if (event.message?.type === "text") {
       const text = event.message.text?.trim() || "";
 
-      // คำสั่งผูกบัญชี: "LINK:user@email.com" หรือ "เชื่อมต่อ:..."
+      // คำสั่งผูกบัญชีสำรอง (Legacy LINK:)
       if (text.startsWith("LINK:") || text.startsWith("เชื่อมต่อ:")) {
         const email = text.replace(/^(LINK:|เชื่อมต่อ:)/i, "").trim().toLowerCase();
         const { data: targetUser, error: findErr } = await supabase
@@ -141,7 +116,6 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // ผูก line_user_id เข้ากับ profile ใน Supabase
         await supabase
           .from("profiles")
           .update({ line_user_id: lineUserId })
@@ -161,7 +135,6 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // ถ้ายังไม่ได้ผูกบัญชี → ชวนกดปุ่ม LIFF (เหลือพิมพ์ LINK: ไว้เป็นทางสำรอง)
       if (!profile) {
         await replyLineMessage(
           event.replyToken,
@@ -177,10 +150,10 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // 1) แสดงสถานะ "กำลังคิด / กำลังพิมพ์..." ให้ผู้ใช้เห็นในแชททันที
+      // แสดงสถานะ "กำลังคิด / กำลังพิมพ์..." ให้ผู้ใช้เห็นในแชททันที
       void showLineLoadingAnimation(lineUserId, channelAccessToken, 20);
 
-      // 2) ประมวลผลข้อความ: จดบันทึก / แก้ไข / ตอบคำถาม
+      // ประมวลผลข้อความ: จดบันทึก / แก้ไข / ตอบคำถาม (Token Optimized)
       let aiAnswer = "";
       try {
         aiAnswer = await processLineUserMessage(profile.id, text);
@@ -233,7 +206,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // 2) ส่งรูปให้ Gemini Vision สกัดข้อมูล
+      // 2) ส่งรูปให้ Vision Model สกัดข้อมูล
       const base64Img = imgRes.buffer.toString("base64");
       const parseRes = await parseSlipImageWithGemini(base64Img, imgRes.mimeType);
 
@@ -253,22 +226,43 @@ export async function POST(req: NextRequest) {
 
       const slip = parseRes.data;
 
-      // 3) ดึงกระเป๋าเงินหลัก (Default Account) ของผู้ใช้
+      // 3) ดึงกระเป๋าเงินทั้งหมดของผู้ใช้เพื่อจับคู่ให้ตรงกับสลิป
       const { data: accounts } = await supabase
         .from("accounts")
         .select("id, name")
         .eq("user_id", profile.id)
-        .order("created_at", { ascending: true })
-        .limit(1);
+        .is("archived_at", null)
+        .order("created_at", { ascending: true });
 
-      const defaultAccount = accounts?.[0];
-      if (!defaultAccount) {
+      if (!accounts || accounts.length === 0) {
         await replyLineMessage(
           event.replyToken,
           [{ type: "text", text: "❌ ยังไม่มีกระเป๋าเงินในระบบ กรุณาเข้าเว็บไปสร้างกระเป๋าเงินก่อนครับ" }],
           channelAccessToken
         );
         continue;
+      }
+
+      // Smart Account Matching:
+      // ถ้าเป็นสลิปโอนเงินธนาคาร/PromptPay -> มองหากระเป๋าที่มีคำว่า "ธนาคาร", "bank", หรือชื่อธนาคารก่อน
+      let targetAccount = accounts[0];
+
+      if (slip.account_hint === "bank") {
+        const bankAccount = accounts.find((a) => {
+          const lower = a.name.toLowerCase();
+          return (
+            lower.includes("ธนาคาร") ||
+            lower.includes("bank") ||
+            (slip.bank_name && lower.includes(slip.bank_name))
+          );
+        });
+        if (bankAccount) targetAccount = bankAccount;
+      } else if (slip.account_hint === "cash") {
+        const cashAccount = accounts.find((a) => {
+          const lower = a.name.toLowerCase();
+          return lower.includes("เงินสด") || lower.includes("cash");
+        });
+        if (cashAccount) targetAccount = cashAccount;
       }
 
       // 4) หาหมวดหมู่ที่ตรงกัน
@@ -280,6 +274,7 @@ export async function POST(req: NextRequest) {
 
       const matchedCat =
         categories?.find((c) => c.name === slip.category) ||
+        categories?.find((c) => c.name.includes(slip.category || "")) ||
         categories?.find((c) => c.name === "อื่น ๆ") ||
         categories?.[0];
 
@@ -289,7 +284,7 @@ export async function POST(req: NextRequest) {
 
       const { error: insertErr } = await supabase.from("transactions").insert({
         user_id: profile.id,
-        account_id: defaultAccount.id,
+        account_id: targetAccount.id,
         category_id: matchedCat?.id || null,
         kind: slip.kind,
         amount: slip.amount,
@@ -369,7 +364,7 @@ export async function POST(req: NextRequest) {
                         spacing: "sm",
                         contents: [
                           { type: "text", text: "กระเป๋า", color: "#aaaaaa", size: "sm", flex: 2 },
-                          { type: "text", text: defaultAccount.name, weight: "bold", color: "#666666", size: "sm", flex: 4 },
+                          { type: "text", text: targetAccount.name, weight: "bold", color: "#666666", size: "sm", flex: 4 },
                         ],
                       },
                       {
@@ -377,8 +372,8 @@ export async function POST(req: NextRequest) {
                         layout: "baseline",
                         spacing: "sm",
                         contents: [
-                          { type: "text", text: "โน้ต", color: "#aaaaaa", size: "sm", flex: 2 },
-                          { type: "text", text: slip.note, color: "#666666", size: "sm", flex: 4, wrap: true },
+                          { type: "text", text: "บันทึก", color: "#aaaaaa", size: "sm", flex: 2 },
+                          { type: "text", text: slip.note || "-", weight: "bold", color: "#666666", size: "sm", flex: 4 },
                         ],
                       },
                     ],

@@ -7,6 +7,8 @@ export type ParsedSlip = {
   kind: "expense" | "income";
   amount: number; // satang
   category: string;
+  account_hint?: "bank" | "cash" | "card" | string; // คำใบ้กระเป๋าเงิน เช่น สลิปธนาคาร -> bank
+  bank_name?: string; // เช่น กสิกร, ไทยพาณิชย์, กรุงไทย
   note: string;
   date?: string;
 };
@@ -18,26 +20,24 @@ const PROMPT = `คุณคือระบบ OCR และสกัดข้�
   "kind": "expense" หรือ "income",
   "amount_baht": ตัวเลขยอดเงินหน่วยบาท (เช่น 150.50 หรือ 450),
   "category": "อาหาร" | "เดินทาง" | "ช้อปปิ้ง" | "บิลและสาธารณูปโภค" | "ของใช้ส่วนตัว" | "บันเทิง" | "สุขภาพ" | "เงินเดือน" | "อื่น ๆ",
-  "note": "ชื่อร้านค้า หรือรายละเอียดสั้นๆ เช่น 7-Eleven, ข้าวมันไก่, โอนให้...",
+  "account_type": "bank" (ถ้าเป็นสลิปโอนเงินผ่านธนาคาร/PromptPay/Mobile Banking) หรือ "cash" (ถ้าเป็นใบเสร็จเงินสด) หรือ "card" (ถ้าเป็นสลิปบัตรเครดิต),
+  "bank_name": "ชื่อธนาคารต้นทาง เช่น กสิกรไทย, ไทยพาณิชย์, กรุงไทย, กรุงเทพ, กรุงศรี, ทหารไทยธนชาต, ออมสิน, ทรูมันนี่",
+  "note": "ชื่อผู้รับเงิน หรือข้อความบันทึกช่วยจำในสลิป",
   "occurred_at": "YYYY-MM-DDTHH:mm:ss+07:00" (ถ้าพบวันเวลาในสลิป)
 }
 
 กฎการแยก:
+- ถ้าเป็นสลิปโอนเงิน / สลิปธนาคาร -> "account_type": "bank"
 - ถ้าเป็นสลิปโอนเงินสำเร็จ / ชำระเงิน / ซื้อสินค้า -> "kind": "expense"
 - ถ้าเป็นสลิปรับเงิน / ได้รับเงินโอนเข้า -> "kind": "income"
 - amount_baht ต้องเป็นตัวเลขเท่านั้น ห้ามใส่เครื่องหมายจุลภาค`;
 
-// รายชื่อโมเดลฟรีที่รองรับรูปภาพ (Vision) เรียงลำดับตัวที่ว่างและเสถียรที่สุด
 const VISION_MODELS = [
   "inclusionai/ling-3.0-flash-vl:free",
   "qwen/qwen3.8-27b:free",
   "google/gemma-4-26b-a4b-it:free",
 ];
 
-/**
- * สกัดข้อมูลสลิปด้วย OpenRouter Free Vision Pool
- * ถ้าตัวใดติด 429 Rate-limit จะสลับไปตัวถัดไปทันทีในเสี้ยววินาที
- */
 export async function parseSlipImageWithGemini(
   base64Image: string,
   mimeType: string = "image/jpeg"
@@ -92,10 +92,8 @@ export async function parseSlipImageWithGemini(
       const json = await res.json();
       let rawText: string = json.choices?.[0]?.message?.content || "";
 
-      // ล้าง Markdown code block ถ้ามี (```json ... ```)
       rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
-      // หาขอบเขต JSON ในกรณีที่มีข้อความอื่นปนมา
       const jsonStart = rawText.indexOf("{");
       const jsonEnd = rawText.lastIndexOf("}");
       if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -114,6 +112,8 @@ export async function parseSlipImageWithGemini(
           kind: parsed.kind === "income" ? "income" : "expense",
           amount: amountSatang,
           category: parsed.category || "อื่น ๆ",
+          account_hint: parsed.account_type || "bank",
+          bank_name: parsed.bank_name,
           note: parsed.note || (parsed.kind === "income" ? "รับเงิน" : "จ่ายเงิน"),
           date: parsed.occurred_at,
         },
