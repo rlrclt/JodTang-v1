@@ -251,13 +251,27 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
   const strip = zoom ? yearIncome : summary;
 
   return (
-    <div
-      className={`relative overflow-hidden bg-surface/90 backdrop-blur-xl border border-white/10 dark:border-white/5 transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-        isExpanded
-          ? "rounded-3xl p-4 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)]"
-          : "rounded-[26px] p-2.5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)]"
-      }`}
-    >
+    <div className="relative z-30">
+      {/* Backdrop เบลอจาง ๆ ตอนกางเกาะปฏิทินออกมาทับเนื้อหา */}
+      {isExpanded && (
+        <div
+          className="fixed inset-0 z-20 bg-black/20 backdrop-blur-[2px] animate-in fade-in duration-300"
+          onClick={() => {
+            setIsExpanded(false);
+            setZoom(false);
+          }}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Island Container — ขยายลอยทับเนื้อหาข้างล่างแบบ Dynamic Island */}
+      <div
+        className={`relative z-30 overflow-hidden bg-surface/95 backdrop-blur-2xl border border-white/20 dark:border-white/10 transition-all duration-350 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          isExpanded
+            ? "absolute top-0 left-0 right-0 rounded-3xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.22)] ring-1 ring-black/5 dark:ring-white/10"
+            : "rounded-[26px] p-2.5 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06)]"
+        }`}
+      >
       {/* Dynamic Header Row / Capsule Island */}
       <div className="flex items-center justify-between gap-1.5">
         <button
@@ -465,6 +479,7 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
         </div>
       </div>
       )}
+      </div>
     </div>
   );
 }
