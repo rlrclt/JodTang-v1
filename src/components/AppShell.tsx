@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import TabBar from "./TabBar";
 import FAB from "./FAB";
 import BottomSheet from "./BottomSheet";
+import ChatbotModal from "./ChatbotModal";
+import DevInspector from "./DevInspector";
 
 // เส้นทางที่ไม่ต้องมี shell (แถบแท็บ + FAB)
 const EXCLUDED_ROUTES = ["/login", "/offline"];
@@ -12,6 +14,7 @@ const EXCLUDED_ROUTES = ["/login", "/offline"];
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const showShell = !EXCLUDED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
@@ -28,11 +31,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
       {showShell && (
         <>
-          <FAB onClick={() => setIsSheetOpen(true)} />
+          <FAB onClick={() => setIsChatOpen(true)} />
           <TabBar />
+          {isChatOpen && (
+            <ChatbotModal onClose={() => setIsChatOpen(false)} />
+          )}
           {isSheetOpen && (
             <BottomSheet onClose={() => setIsSheetOpen(false)} />
           )}
+          {/* ชี้ element เพื่อบอก agent (dev เท่านั้น ไม่ขึ้น production) */}
+          {process.env.NODE_ENV === "development" && <DevInspector />}
         </>
       )}
     </div>
