@@ -12,7 +12,15 @@ export async function resetUserData() {
     return { error: "ไม่ได้เข้าสู่ระบบ" };
   }
 
-  // ลบข้อมูลทั้งหมดของผู้ใช้ตามลำดับ FK constraints (transactions -> budgets -> categories -> accounts)
+  // 1. ลบประวัติ AI analyses
+  const { error: aiErr } = await supabase
+    .from("ai_analyses")
+    .delete()
+    .eq("user_id", user.id);
+
+  if (aiErr) return { error: aiErr.message };
+
+  // 2. ลบ transactions
   const { error: txErr } = await supabase
     .from("transactions")
     .delete()
@@ -20,6 +28,7 @@ export async function resetUserData() {
 
   if (txErr) return { error: txErr.message };
 
+  // 3. ลบ budgets
   const { error: bgErr } = await supabase
     .from("budgets")
     .delete()
@@ -27,6 +36,7 @@ export async function resetUserData() {
 
   if (bgErr) return { error: bgErr.message };
 
+  // 4. ลบ categories
   const { error: catErr } = await supabase
     .from("categories")
     .delete()
@@ -34,6 +44,7 @@ export async function resetUserData() {
 
   if (catErr) return { error: catErr.message };
 
+  // 5. ลบ accounts
   const { error: accErr } = await supabase
     .from("accounts")
     .delete()
