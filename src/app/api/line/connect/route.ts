@@ -8,7 +8,8 @@ export async function GET() {
   const { data } = await supabase.auth.getUser();
 
   if (!data?.user) {
-    return NextResponse.redirect(new URL("/login", process.env.NEXT_PUBLIC_SUPABASE_URL));
+    const origin = process.env.NEXT_PUBLIC_APP_URL || "https://jodtangv1.vercel.app";
+    return NextResponse.redirect(`${origin}/login`);
   }
 
   const channelId = process.env.LINE_LOGIN_CHANNEL_ID;
