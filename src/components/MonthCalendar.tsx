@@ -411,57 +411,71 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
               </button>
             </div>
 
-            {/* iOS Drum Wheel Picker Dropdown Card */}
+            {/* Native iOS Cupertino Drum Wheel Card (ดีไซน์กระจกแก้ว มิติโค้งมนสไตล์ Apple) */}
             {showYearPicker && (
-              <div className="mb-3 rounded-2xl border border-focus/20 bg-surface-2/90 p-2.5 shadow-lg backdrop-blur-xl animate-in zoom-in-95 duration-200">
-                <div className="flex items-center justify-between px-2 mb-1">
-                  <span className="text-[10px] font-semibold text-text-muted">
-                    หมุนเลื่อนขึ้น-ลงเพื่อเลือกปี (Intl Wheel)
-                  </span>
+              <div className="relative mb-3 overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-surface/95 to-surface-2/95 p-3.5 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-in zoom-in-95 duration-200">
+                {/* Header แถบด้านบน */}
+                <div className="mb-2 flex items-center justify-between border-b border-border/30 pb-2 px-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full bg-focus animate-pulse" />
+                    <span className="text-[11px] font-bold text-text">เลือกปี พ.ศ.</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowYearPicker(false)}
-                    className="text-[10px] font-bold text-focus hover:underline"
+                    className="rounded-full bg-focus/15 px-3 py-0.5 text-[11px] font-extrabold text-focus hover:bg-focus/25 active:scale-95 transition-all"
                   >
-                    เสร็จสิ้น ✓
+                    เสร็จสิ้น
                   </button>
                 </div>
 
-                <div
-                  ref={wheelRef}
-                  className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
-                  tabIndex={0}
-                  aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
-                >
-                  <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/15 border-y border-focus/30" />
-                  {/* ขอบเขตปีสำหรับบันทึกรายรับรายจ่าย: ย้อนหลัง 10 ปี ถึง ล่วงหน้า 1 ปี (ไม่เปิดกว้างมั่วแบบ 40-100 ปี) */}
-                  {(() => {
-                    const pastYears = 10;
-                    const futureYears = 1;
-                    const startYear = today.year - pastYears;
-                    const totalYears = pastYears + futureYears + 1;
+                {/* 3D Cupertino Cylinder Drum Wheel */}
+                <div className="relative h-32 select-none">
+                  {/* iOS Top Vignette Shade (เงาไล่ระดับด้านบนสร้างมิติโค้งมน 3D) */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-surface via-surface/70 to-transparent" />
 
-                    return Array.from({ length: totalYears }, (_, i) => {
-                      const y = startYear + i;
-                      const isSelected = y === navYear;
-                      const thaiYear = yearFormatter.format(new Date(y, 0, 1));
+                  {/* iOS Center Lens Indicator (เลนส์โฟกัสตรงกลางพร้อมแสงเงา) */}
+                  <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-10 -translate-y-1/2 rounded-2xl bg-focus/10 border-y border-focus/30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]" />
 
-                      return (
-                        <div
-                          key={y}
-                          data-year={y}
-                          onClick={() => setNavYear(y)}
-                          className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
-                            isSelected
-                              ? "scale-110 text-sm font-extrabold text-focus"
-                              : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
-                          }`}
-                        >
-                          {thaiYear} ({y})
-                        </div>
-                      );
-                    });
-                  })()}
+                  {/* iOS Bottom Vignette Shade (เงาไล่ระดับด้านล่าง) */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10 bg-gradient-to-t from-surface via-surface/70 to-transparent" />
+
+                  {/* Scrollable Items Container */}
+                  <div
+                    ref={wheelRef}
+                    className="relative z-0 h-full overflow-y-auto snap-y snap-mandatory scroll-smooth py-11 text-center scrollbar-hide"
+                    tabIndex={0}
+                    aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
+                  >
+                    {(() => {
+                      const pastYears = 10;
+                      const futureYears = 1;
+                      const startYear = today.year - pastYears;
+                      const totalYears = pastYears + futureYears + 1;
+
+                      return Array.from({ length: totalYears }, (_, i) => {
+                        const y = startYear + i;
+                        const isSelected = y === navYear;
+                        const thaiYear = yearFormatter.format(new Date(y, 0, 1));
+
+                        return (
+                          <div
+                            key={y}
+                            data-year={y}
+                            onClick={() => setNavYear(y)}
+                            className={`flex h-10 snap-center cursor-pointer items-center justify-center transition-all duration-200 ${
+                              isSelected
+                                ? "scale-115 font-black text-focus text-base tracking-tight drop-shadow-xs"
+                                : "scale-90 font-medium text-text-muted text-xs opacity-35 hover:opacity-75"
+                            }`}
+                          >
+                            <span>{thaiYear}</span>
+                            <span className="ml-1.5 text-[10px] font-normal opacity-60">({y})</span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
