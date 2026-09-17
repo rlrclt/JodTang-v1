@@ -17,8 +17,7 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
 
   const isConnected = Boolean(lineUserId);
   const linkCommand = `LINK:${email}`;
-  const lineOAuthUrl = `/auth/signin?provider=line`;
-
+  const lineOAuthUrl = `/auth/signin?provider=line&next=${encodeURIComponent("/settings/profile")}`;
   const handleCopy = () => {
     navigator.clipboard.writeText(linkCommand);
     setCopied(true);

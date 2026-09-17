@@ -6,6 +6,7 @@ import { isValidOAuthProvider } from "@/lib/middleware-guards";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const provider = searchParams.get("provider");
+  const next = searchParams.get("next") ?? "/";
 
   if (!provider) {
     return NextResponse.redirect(`${origin}/login?error=missing_provider`);
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 
   const supabase = await createClient();
   // callback URL ชี้กลับมาที่ /auth/callback
-  const callbackUrl = `${origin}/auth/callback`;
+  const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   // Supabase Custom OIDC provider ต้องส่งในรูปแบบ "custom:identifier" เช่น "custom:line"
   const oauthProvider = provider === "line" ? "custom:line" : provider;
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
       scopes: provider === "line" ? "openid profile email" : undefined,
     },
   });
+
   if (error || !data?.url) {
     console.error("signInWithOAuth error:", error);
     return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
