@@ -60,10 +60,24 @@ describe("AI Analysis Engine (Privacy & Heuristics)", () => {
     assert.ok(hasBudgetWarning, "ควรเตือนเกินงบประมาณ");
   });
 
-  it("analyzeSpending falls back gracefully to local heuristic without throwing", async () => {
-    const result = await analyzeSpending("กันยายน 2569", sampleData);
-    assert.ok(result.summary.length > 0);
-    assert.ok(result.model.length > 0);
-    assert.ok(Array.isArray(result.insights));
+  it("analyzeSpending throws error when no API key is provided", async () => {
+    // Ensure API keys are cleared for this test
+    const oldAiKey = process.env.AI_API_KEY;
+    const oldGeminiKey = process.env.GEMINI_API_KEY;
+    const oldOpenAiKey = process.env.OPENAI_API_KEY;
+    delete process.env.AI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+
+    await assert.rejects(
+      async () => {
+        await analyzeSpending("กันยายน 2569", sampleData);
+      },
+      /ยังไม่ได้ตั้งค่า API Key/
+    );
+
+    if (oldAiKey) process.env.AI_API_KEY = oldAiKey;
+    if (oldGeminiKey) process.env.GEMINI_API_KEY = oldGeminiKey;
+    if (oldOpenAiKey) process.env.OPENAI_API_KEY = oldOpenAiKey;
   });
 });

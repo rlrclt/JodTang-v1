@@ -164,7 +164,7 @@ export function runLocalHeuristicAnalysis(
   };
 }
 
-/** รัน AI Analysis พร้อม fallback */
+/** เรียก AI Analysis จริงผ่าน Gemini/OpenAI API (บังคับต้องมี API Key ไม่มี Fallback) */
 export async function analyzeSpending(
   monthLabel: string,
   data: AggregatedSummary
@@ -175,42 +175,36 @@ export async function analyzeSpending(
     process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return runLocalHeuristicAnalysis(monthLabel, data);
+    throw new Error("ยังไม่ได้ตั้งค่า API Key สำหรับ AI (AI_API_KEY หรือ GEMINI_API_KEY)");
   }
 
   const prompt = `คุณคือผู้เชี่ยวชาญด้านวางแผนการเงินส่วนบุคคล ให้วิเคราะห์สรุปข้อมูลการเงินต่อไปนี้เป็นภาษาไทย กระชับ มีประโยชน์ จริงใจ:\n\n${buildPrivacyPayload(monthLabel, data)}\n\nตอบในรูปแบบ JSON:\n{\n  "summary": "ข้อความสรุปภาพรวม 2-3 ประโยค",\n  "insights": [\n    {"title": "หัวข้อข้อคิดเห็น", "description": "คำอธิบายและคำแนะนำ", "type": "warning" | "tip" | "positive"}\n  ]\n}`;
 
-  try {
-    if (process.env.GEMINI_API_KEY || process.env.AI_API_KEY) {
-      const key = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
-      });
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" },
+    }),
+  });
 
-      if (res.ok) {
-        const json = await res.json();
-        const rawText =
-          json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          return {
-            summary: parsed.summary || "",
-            model: "gemini-2.0-flash",
-            insights: parsed.insights || [],
-          };
-        }
-      }
-    }
-  } catch (err) {
-    console.error("AI Provider error, falling back to heuristic:", err);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`AI API Error (${res.status}): ${errText}`);
   }
 
-  // Fallback to local heuristic engine
-  return runLocalHeuristicAnalysis(monthLabel, data);
+  const json = await res.json();
+  const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) {
+    throw new Error("AI ตอบกลับมาไม่ถูกต้องหรือว่างเปล่า");
+  }
+
+  const parsed = JSON.parse(rawText);
+  return {
+    summary: parsed.summary || "",
+    model: "gemini-2.0-flash",
+    insights: parsed.insights || [],
+  };
 }
