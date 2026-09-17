@@ -1,63 +1,177 @@
 import { SmoothLink } from "@/components/SmoothLink";
 import { signOut } from "@/lib/supabase/actions";
+import { createClient } from "@/lib/supabase/server";
 
-// หน้าตั้งค่า (hub) — จุดเข้าถึงการตั้งค่าทั้งหมด + ปุ่มออกจากระบบ
-// ลิงก์ 6 หน้า + ปุ่มออกจากระบบ · ไม่มีปุ่มสลับธีม (โหมดมืดเป็นเฟสหลัง)
-// ไม่ใช้ AppShell ตรงนี้ เพราะ shell ครอบด้วย layout ของ root แล้ว
-export default function SettingsPage() {
-  const items = [
-    { href: "/settings/accounts", label: "กระเป๋าเงิน", icon: "wallet" },
-    { href: "/settings/categories", label: "หมวดหมู่", icon: "tag" },
-    { href: "/settings/budgets", label: "งบประมาณ", icon: "budget" },
-    { href: "/settings/trash", label: "ถังขยะ", icon: "trash" },
-    { href: "/settings/export", label: "ส่งออกข้อมูล", icon: "export" },
-    { href: "/settings/profile", label: "บัญชีของฉัน", icon: "profile" },
+export const dynamic = "force-dynamic";
+
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const userEmail = user?.email || "ผู้ใช้งาน JodTang";
+  const userName = user?.user_metadata?.name || userEmail.split("@")[0];
+
+  const sections = [
+    {
+      title: "การเงินและข้อมูล",
+      items: [
+        {
+          href: "/settings/accounts",
+          label: "กระเป๋าเงินและบัญชี",
+          sublabel: "จัดการเงินสด บัญชีธนาคาร และบัตร",
+          icon: "wallet",
+          color: "from-blue-500 to-indigo-600",
+        },
+        {
+          href: "/settings/categories",
+          label: "หมวดหมู่รายรับ-รายจ่าย",
+          sublabel: "สร้างและปรับแต่งหมวดหมู่ส่วนตัว",
+          icon: "tag",
+          color: "from-emerald-500 to-teal-600",
+        },
+        {
+          href: "/settings/budgets",
+          label: "วางแผนงบประมาณ",
+          sublabel: "ตั้งงบรายเดือนและควบคุมการใช้จ่าย",
+          icon: "budget",
+          color: "from-amber-500 to-orange-600",
+        },
+      ],
+    },
+    {
+      title: "ระบบและการจัดการ",
+      items: [
+        {
+          href: "/settings/theme",
+          label: "ปรับแต่งธีมและสีสัน",
+          sublabel: "เลือกธีมสว่าง ธีมมืด หรือพาเลตต์สี",
+          icon: "theme",
+          color: "from-purple-500 to-pink-600",
+        },
+        {
+          href: "/settings/export",
+          label: "ส่งออกและสำรองข้อมูล",
+          sublabel: "ดาวน์โหลดไฟล์ CSV หรือ JSON",
+          icon: "export",
+          color: "from-sky-500 to-cyan-600",
+        },
+        {
+          href: "/settings/trash",
+          label: "ถังขยะและกู้คืน",
+          sublabel: "กู้คืนรายการหรือลบถาวร",
+          icon: "trash",
+          color: "from-rose-500 to-red-600",
+        },
+      ],
+    },
   ];
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
-      <header className="p-4 pb-2">
-        <h1 className="text-2xl font-bold">ตั้งค่า</h1>
-      </header>
+    <div className="mx-auto min-h-[100dvh] max-w-lg px-4 pt-6 pb-28 select-none">
+      {/* 1. Profile Hero Card (iOS Apple ID Style) */}
+      <SmoothLink
+        href="/settings/profile"
+        direction="forward"
+        className="group mb-6 flex items-center gap-3.5 rounded-3xl border border-white/20 bg-surface/95 p-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] backdrop-blur-xl transition-all duration-200 hover:bg-surface-2/60 active:scale-[0.99]"
+      >
+        {/* User Avatar */}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-focus via-blue-500 to-sky-400 text-xl font-black text-white shadow-md shadow-focus/25">
+          {userName.charAt(0).toUpperCase()}
+        </div>
 
-      <main className="flex-1 px-4 pb-28">
-        <section aria-label="การตั้งค่าทั้งหมด" className="grid gap-2">
-          {items.map((item) => (
-            <SmoothLink
-              key={item.href}
-              href={item.href}
-              className="flex min-h-[56px] items-center gap-3 rounded-btn border border-border bg-surface px-4 py-3 text-text transition-colors hover:bg-surface-2"
-            >
-              <ChannelIcon icon={item.icon} />
-              <span className="flex-1">{item.label}</span>
-              <ChevronRight />
-            </SmoothLink>
-          ))}
-        </section>
-      </main>
+        {/* User Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h2 className="truncate text-base font-extrabold text-text group-hover:text-focus transition-colors">
+              {userName}
+            </h2>
+            <span className="shrink-0 rounded-full bg-focus/10 px-2 py-0.5 text-[9px] font-bold text-focus">
+              บัญชีของฉัน
+            </span>
+          </div>
+          <p className="truncate text-xs font-medium text-text-muted mt-0.5">
+            {userEmail}
+          </p>
+        </div>
 
-      <footer className="p-4">
+        <ChevronRight />
+      </SmoothLink>
+
+      {/* 2. Grouped Settings Sections (iOS Inset Grouped Style) */}
+      <div className="space-y-6">
+        {sections.map((sec, secIdx) => (
+          <div key={secIdx} className="space-y-2">
+            <h3 className="px-2 text-xs font-bold uppercase tracking-wider text-text-muted">
+              {sec.title}
+            </h3>
+
+            <div className="overflow-hidden rounded-3xl border border-border/50 bg-surface/90 shadow-sm backdrop-blur-xl divide-y divide-border/40">
+              {sec.items.map((item) => (
+                <SmoothLink
+                  key={item.href}
+                  href={item.href}
+                  direction="forward"
+                  className="group flex min-h-[58px] items-center gap-3.5 px-4 py-3 transition-colors hover:bg-surface-2/70 active:bg-surface-2"
+                >
+                  {/* Icon Box with Gradient Badge */}
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr ${item.color} text-white shadow-xs`}
+                  >
+                    <ChannelIcon icon={item.icon} />
+                  </div>
+
+                  {/* Label & Sublabel */}
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-text group-hover:text-focus transition-colors">
+                      {item.label}
+                    </span>
+                    <span className="block text-[11px] font-medium text-text-muted truncate mt-0.5">
+                      {item.sublabel}
+                    </span>
+                  </div>
+
+                  <ChevronRight />
+                </SmoothLink>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 3. App Version & Sign Out Section */}
+      <div className="mt-8 space-y-4 text-center">
         <form action={signOut}>
           <button
             type="submit"
-            className="w-full min-h-[44px] rounded-btn border border-border bg-surface px-4 py-3 text-base text-text transition-colors hover:bg-surface-2"
+            className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-expense/20 bg-expense/5 px-4 py-3 text-sm font-bold text-expense shadow-xs transition-all hover:bg-expense/15 active:scale-[0.99]"
           >
-            ออกจากระบบ
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>ออกจากระบบ</span>
           </button>
         </form>
-      </footer>
+
+        <p className="text-[11px] text-text-muted font-medium">
+          JodTang (จดตังค์) v1.0 · ออกแบบด้วยความใส่ใจเพื่อการเงินของคุณ
+        </p>
+      </div>
     </div>
   );
 }
 
 function ChannelIcon({ icon }: { icon: string }) {
   const common = {
-    width: 24,
-    height: 24,
+    width: 18,
+    height: 18,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.5,
+    strokeWidth: 2,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
@@ -86,28 +200,34 @@ function ChannelIcon({ icon }: { icon: string }) {
           <rect x="2" y="15" width="20" height="4" rx="1" />
         </svg>
       );
+    case "theme":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2" />
+          <path d="M12 20v2" />
+          <path d="m4.93 4.93 1.41 1.41" />
+          <path d="m17.66 17.66 1.41 1.41" />
+          <path d="M2 12h2" />
+          <path d="M20 12h2" />
+          <path d="m6.34 17.66-1.41 1.41" />
+          <path d="m19.07 4.93-1.41 1.41" />
+        </svg>
+      );
     case "trash":
       return (
         <svg {...common}>
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          <line x1="10" y1="11" x2="10" y2="17" />
-          <line x1="14" y1="11" x2="14" y2="17" />
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
         </svg>
       );
     case "export":
       return (
         <svg {...common}>
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
-      );
-    case "profile":
-      return (
-        <svg {...common}>
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
       );
     default:
@@ -118,16 +238,15 @@ function ChannelIcon({ icon }: { icon: string }) {
 function ChevronRight() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth={2.5}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-text-muted"
-      aria-hidden="true"
+      className="text-text-muted shrink-0 opacity-60"
     >
       <polyline points="9 18 15 12 9 6" />
     </svg>
