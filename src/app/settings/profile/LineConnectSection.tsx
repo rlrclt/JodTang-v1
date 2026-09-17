@@ -20,6 +20,8 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
   const liffId =
     process.env.NEXT_PUBLIC_LIFF_ID || "2011649062-neOljV8x";
   const liffUrl = liffId ? `https://liff.line.me/${liffId}` : null;
+  // Basic ID บอท (public) — ปุ่มเพิ่มเพื่อน ต้องเป็นเพื่อนก่อนบอทถึง push ได้
+  const botFriendUrl = "https://line.me/R/ti/p/@650dszjd";
 
   const handleUnlink = async () => {
     if (!confirm("ต้องการยกเลิกการเชื่อมต่อกับ LINE Bot ใช่หรือไม่?")) return;
@@ -118,8 +120,21 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
           </div>
 
           <p className="text-[10px] text-text-muted leading-normal">
-            💡 กดปุ่ม → เปิดในแอป LINE → กลับมาหน้าเว็บกดยืนยัน 1 คลิก บอทจะส่งข้อความยืนยันในแชททันทีครับ
+            💡 ขั้นตอน: 1) กดปุ่มเขียวเชื่อมต่อ 2) <b>ต้องเป็นเพื่อนกับบอทก่อน</b> ไม่งั้นบอททักหาไม่ได้
           </p>
+
+          {/* ปุ่มเพิ่มเพื่อนบอท — LINE ส่ง push ได้เฉพาะเพื่อนเท่านั้น */}
+          <div className="pt-1">
+            <a
+              href={botFriendUrl}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl border border-[#06C755]/40 bg-white px-4 py-3 text-sm font-bold text-[#06C755] transition-all hover:bg-[#06C755]/5 active:scale-[0.99] text-center"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+              </svg>
+              <span>เพิ่มเพื่อนบอท (@650dszjd)</span>
+            </a>
+          </div>
         </div>
       )}
     </section>

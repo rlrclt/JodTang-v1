@@ -109,6 +109,32 @@ export async function claimLineLinkToken(
       .update({ used_at: new Date().toISOString() })
       .eq("id", linkRow.id);
 
+    // ส่งข้อความยืนยันเข้าแชท LINE (best-effort — push พังต้องไม่ทำให้ claim ล้ม)
+    const displayName = linkRow.line_display_name ?? "ผู้ใช้งาน";
+    const botToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    if (botToken) {
+      try {
+        await fetch("https://api.line.me/v2/bot/message/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${botToken}`,
+          },
+          body: JSON.stringify({
+            to: linkRow.line_user_id,
+            messages: [
+              {
+                type: "text",
+                text: `🎉 เชื่อมต่อบัญชีสำเร็จเรียบร้อยแล้วครับ!\n\n👤 บัญชี: คุณ ${displayName}\n🟢 สถานะ: พร้อมบันทึกสลิปอัตโนมัติ\n\n📸 ส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทนี้ได้ทันที AI จะช่วยลงบัญชีให้คุณอัตโนมัติครับ ✨`,
+              },
+            ],
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to push LINE connected message:", err);
+      }
+    }
+
     return { lineDisplayName: linkRow.line_display_name ?? undefined };
   } catch (err: any) {
     return { error: err?.message ?? "เชื่อมต่อไม่สำเร็จ" };
