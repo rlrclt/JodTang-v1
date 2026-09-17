@@ -8,9 +8,26 @@ type Props = {
   email: string;
   name: string;
   lineUserId: string | null;
+  lineConnected?: boolean;
+  lineError?: string | null;
 };
 
-export default function LineConnectSection({ email, name, lineUserId }: Props) {
+const LINE_ERROR_MESSAGES: Record<string, string> = {
+  cancelled: "คุณยกเลิกการล็อกอิน LINE กลางคัน ลองกดเชื่อมต่อใหม่อีกครั้งครับ",
+  missing_params: "LINE ส่งข้อมูลกลับมาไม่ครบ (code/state หาย) ลองใหม่อีกครั้งครับ",
+  invalid_state: "เซสชันหมดอายุหรือไม่ตรงกัน (เปิดทิ้งไว้นานเกิน 5 นาที หรือ cookie ถูกบล็อก) ลองกดเชื่อมต่อใหม่อีกครั้งครับ",
+  no_session: "ไม่พบเซสชันผู้ใช้ตอนกลับจาก LINE กรุณาล็อกอินเว็บใหม่แล้วลองอีกครั้งครับ",
+  missing_line_config: "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า LINE_LOGIN_CHANNEL_ID / SECRET ติดต่อแอดมินเพื่อตั้งค่า env ครับ",
+  missing_supabase_config: "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่า Supabase ฝั่ง server ติดต่อแอดมินครับ",
+  token_failed: "แลก code เป็น token กับ LINE ไม่สำเร็จ ตรวจ Channel secret / Callback URL ใน LINE Console ครับ",
+  no_access_token: "LINE ไม่ได้ส่ง access_token กลับมา ลองใหม่อีกครั้งครับ",
+  profile_failed: "ดึงโปรไฟล์ LINE ไม่สำเร็จ ลองใหม่อีกครั้งครับ",
+  no_line_user_id: "LINE ไม่ได้ส่ง userId กลับมา ลองใหม่อีกครั้งครับ",
+  update_failed: "บันทึก line_user_id ลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้งครับ",
+  internal: "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ ลองใหม่อีกครั้งครับ",
+};
+
+export default function LineConnectSection({ email, name, lineUserId, lineConnected, lineError }: Props) {
   const [unlinking, setUnlinking] = useState(false);
   const router = useRouter();
 
@@ -29,6 +46,17 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
 
   return (
     <section className="mt-4 rounded-3xl border border-emerald-500/20 bg-surface/95 p-5 shadow-sm backdrop-blur-xl transition-all select-none">
+      {/* แบนเนอร์ผลลัพธ์จาก /api/line/connect/callback — เดิม query ถูกเมินจนดูเหมือนกดแล้วเงียบ */}
+      {lineConnected ? (
+        <p role="status" className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-700">
+          🎉 เชื่อมต่อ LINE สำเร็จแล้ว! บอทจะส่งข้อความยืนยันในแชท LINE ทันทีครับ
+        </p>
+      ) : null}
+      {lineError ? (
+        <p role="alert" className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-xs font-bold text-red-700">
+          ❌ เชื่อมต่อ LINE ไม่สำเร็จ ({lineError}): {LINE_ERROR_MESSAGES[lineError] ?? "ลองใหม่อีกครั้งครับ"}
+        </p>
+      ) : null}
       {/* Header */}
       <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-3">
         <div className="flex items-center gap-2">
