@@ -2,22 +2,13 @@
 
 import { useState } from "react";
 import { useTransactions } from "@/components/TransactionsProvider";
-import BalanceCard from "@/components/BalanceCard";
+import { useSwipeMonth } from "@/hooks/useSwipeMonth";
 import HomeTransactionItem from "@/components/HomeTransactionItem";
 import TransactionDetailSheet from "@/components/TransactionDetailSheet";
+import MonthCalendar from "@/components/MonthCalendar";
 import type { TransactionItem } from "@/hooks/useTransactionsHook";
 import { formatSatang } from "@/lib/format-satang";
 import { SmoothLink } from "@/components/SmoothLink";
-
-/** แปลง month string "YYYY-MM-01" เป็นชื่อเดือนภาษาไทย + ปี */
-function monthLabel(monthStr: string): string {
-  const [y, m] = monthStr.split("-").map(Number);
-  const date = new Date(y, m - 1, 1);
-  return new Intl.DateTimeFormat("th-TH", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
 
 /** คำนวณเดือนก่อนหน้า/ถัดไป */
 function shiftMonth(monthStr: string, delta: number): string {
@@ -36,6 +27,7 @@ export default function HomePage() {
     summary,
     accountBalances,
     isLoading,
+    isFetching,
     error,
     refresh,
   } = useTransactions();
@@ -43,6 +35,12 @@ export default function HomePage() {
 
   const handlePrev = () => setMonth(shiftMonth(month, -1));
   const handleNext = () => setMonth(shiftMonth(month, 1));
+
+  // สไลด์นิ้วซ้าย/ขวาเพื่อเปลี่ยนเดือน — เดือนข้างๆ อยู่ในแคชฮุกแล้วเลยไม่ต้องรอ
+  const { swipeRef, swipeHandlers, swipeStyle } = useSwipeMonth({
+    onSwipeLeft: handleNext,
+    onSwipeRight: handlePrev,
+  });
 
   // สถานะกำลังโหลด (Skeleton)
   if (isLoading) {
@@ -82,36 +80,18 @@ export default function HomePage() {
   const isEmpty = transactions.length === 0;
 
   return (
-    <div className="p-4 pb-28">
-      {/* เดือนavigator */}
-      <div className="mb-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={handlePrev}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-text transition-colors active:bg-surface-2"
-          aria-label="เดือนก่อนหน้า"
-        >
-          ‹
-        </button>
-        <h1 className="text-lg font-semibold">{monthLabel(month)}</h1>
-        <button
-          type="button"
-          onClick={handleNext}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-text transition-colors active:bg-surface-2"
-          aria-label="เดือนถัดไป"
-        >
-          ›
-        </button>
-      </div>
-
-      {/* การ์ดยอดเงิน */}
+    <div className={`p-4 transition-opacity duration-200 ${isFetching ? "opacity-75 pointer-events-auto" : "opacity-100"}`}>
+      {/* ปฏิทิน iOS Zoom — ค้างที่เดิม (Design 7) มีปุ่ม ‹ › ข้างใน + แถบสรุปยอด */}
       <div className="mb-4">
-        <BalanceCard
-          income={summary.income}
-          expense={summary.expense}
-          balance={summary.balance}
+        <MonthCalendar
+          month={month}
+          setMonth={setMonth}
+          summary={summary}
         />
       </div>
+
+      {/* เนื้อหาเดือน — สไลด์เฉพาะส่วนนี้ ปฏิทินค้างที่เดิม */}
+      <div ref={swipeRef} {...swipeHandlers} style={swipeStyle}>
       {accountBalances.length > 0 && (
         <section className="mb-5" aria-label="ยอดเงินในกระเป๋า">
           <div className="mb-3 flex items-center justify-between">
@@ -174,6 +154,7 @@ export default function HomePage() {
           </ul>
         </>
       )}
+      </div>
       {selectedTx && (
         <TransactionDetailSheet
           transaction={selectedTx}
