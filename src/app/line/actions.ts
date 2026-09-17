@@ -110,10 +110,21 @@ export async function claimLineLinkToken(
       .eq("id", linkRow.id);
 
     // ส่งข้อความยืนยันเข้าแชท LINE (best-effort — push พังต้องไม่ทำให้ claim ล้ม)
+    // แนบข้อมูลบัญชี Google ที่ผูกไว้ให้ผู้ใช้ตรวจว่าถูกบัญชีจริง
     const displayName = linkRow.line_display_name ?? "ผู้ใช้งาน";
     const botToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     if (botToken) {
       try {
+        const { data: prof } = await admin
+          .from("profiles")
+          .select("full_name, email")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const accountLine = prof?.email
+          ? `📧 บัญชีที่เชื่อม: ${prof.email}${prof.full_name ? `\n👤 ชื่อในระบบ: ${prof.full_name}` : ""}`
+          : null;
+
         await fetch("https://api.line.me/v2/bot/message/push", {
           method: "POST",
           headers: {
@@ -125,7 +136,7 @@ export async function claimLineLinkToken(
             messages: [
               {
                 type: "text",
-                text: `🎉 เชื่อมต่อบัญชีสำเร็จเรียบร้อยแล้วครับ!\n\n👤 บัญชี: คุณ ${displayName}\n🟢 สถานะ: พร้อมบันทึกสลิปอัตโนมัติ\n\n📸 ส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทนี้ได้ทันที AI จะช่วยลงบัญชีให้คุณอัตโนมัติครับ ✨`,
+                text: `🎉 เชื่อมต่อบัญชีสำเร็จเรียบร้อยแล้วครับ!\n\n💬 LINE: คุณ ${displayName}\n${accountLine ? `${accountLine}\n` : ""}🟢 สถานะ: พร้อมบันทึกสลิปอัตโนมัติ\n\n✅ กรุณาตรวจว่าอีเมลข้างบนเป็นบัญชีของคุณ ถ้าไม่ใช่ กดยกเลิกในหน้าโปรไฟล์แล้วเชื่อมใหม่ครับ\n\n📸 ส่งรูปสลิปโอนเงิน หรือใบเสร็จเข้ามาในแชทนี้ได้ทันที AI จะช่วยลงบัญชีให้คุณอัตโนมัติครับ ✨`,
               },
             ],
           }),

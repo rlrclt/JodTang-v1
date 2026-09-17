@@ -8,8 +8,9 @@ import BottomSheet from "./BottomSheet";
 import ChatbotModal from "./ChatbotModal";
 import DevInspector from "./DevInspector";
 
-// เส้นทางที่ไม่ต้องมี shell (แถบแท็บ + FAB)
-const EXCLUDED_ROUTES = ["/login", "/offline"];
+// เส้นทางที่ไม่ต้องมี shell (แถบแท็บ + FAB + ปุ่ม AI)
+// /line/* เปิดใน LIFF webview — ต้องโล่ง ไม่มี shell ทับ
+const EXCLUDED_ROUTES = ["/login", "/offline", "/line"];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
