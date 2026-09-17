@@ -17,7 +17,6 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
-
   // callback URL ชี้กลับมาที่ /auth/callback
   const callbackUrl = `${origin}/auth/callback`;
 
@@ -25,10 +24,12 @@ export async function GET(request: Request) {
     provider: provider as any,
     options: {
       redirectTo: callbackUrl,
+      scopes: provider === "line" ? "profile openid email" : undefined,
     },
   });
 
   if (error || !data?.url) {
+    console.error("signInWithOAuth error:", error);
     return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
   }
 

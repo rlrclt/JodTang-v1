@@ -17,12 +17,7 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
 
   const isConnected = Boolean(lineUserId);
   const linkCommand = `LINK:${email}`;
-  const botBasicId = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || "";
-
-  // Direct Connect Link (ส่งคำสั่ง LINK: เข้าแชท LINE อัตโนมัติในคลิกเดียว)
-  const directConnectUrl = botBasicId
-    ? `https://line.me/R/oaMessage/${botBasicId.startsWith("@") ? botBasicId : "@" + botBasicId}/?${encodeURIComponent(linkCommand)}`
-    : `https://line.me/R/share?text=${encodeURIComponent(linkCommand)}`;
+  const lineOAuthUrl = `/auth/signin?provider=line`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(linkCommand);
@@ -117,18 +112,16 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
             </p>
           </div>
 
-          {/* ปุ่มกดเชื่อมต่อเข้า LINE ทันที (One-Click Connect) */}
+          {/* ปุ่มกดเชื่อมต่อเข้าหน้า LINE Login OAuth โดยตรง */}
           <div className="pt-1">
             <a
-              href={directConnectUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-h-[46px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
+              href={lineOAuthUrl}
+              className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
               </svg>
-              <span>กดเชื่อมต่อในแอป LINE ทันที</span>
+              <span>กดเพื่อเชื่อมต่อด้วยบัญชี LINE (LINE Login)</span>
             </a>
           </div>
 

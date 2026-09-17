@@ -20,9 +20,8 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
-// D1 — providers ที่อนุญาตให้ใช้ OAuth sign-in (sync กับ PROVIDERS ใน login/page.tsx)
-export const ALLOWED_OAUTH_PROVIDERS = ["google"] as const;
-
+// D1 — providers ที่อนุญาตให้ใช้ OAuth sign-in
+export const ALLOWED_OAUTH_PROVIDERS = ["google", "line"] as const;
 export function isValidOAuthProvider(provider: string): boolean {
   return (ALLOWED_OAUTH_PROVIDERS as readonly string[]).includes(provider);
 }
