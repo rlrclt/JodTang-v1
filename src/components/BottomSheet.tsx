@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createTransaction } from "@/app/actions/transactions";
+import { listAccounts } from "@/app/actions/accounts";
+import { listCategories } from "@/app/actions/categories";
 import { useTransactions } from "./TransactionsProvider";
 import CategoryIcon from "@/components/CategoryIcon";
 import type { TransactionItem } from "@/hooks/useTransactionsHook";
@@ -62,8 +64,15 @@ export default function BottomSheet({ onClose }: Props) {
   const [dateOffset, setDateOffset] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const { addOptimistic, refresh } = useTransactions();
-  // กระเป๋าเงินจริงของผู้ใช้ — แทนค่า "default" ลอย ๆ ที่ทำให้ Postgres ปฏิเสธ (คอลัมน์เป็น uuid)
+  // รายการกระเป๋าเงินของผู้ใช้
+  const [accounts, setAccounts] = useState<
+    { id: string; name: string; currency?: string }[]
+  >([]);
   const [account, setAccount] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [toAccount, setToAccount] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -74,17 +83,29 @@ export default function BottomSheet({ onClose }: Props) {
   const prevTabRef = useRef<TabKind>("expense");
 
   const amountSatang = Math.round(parseFloat(amount || "0") * 100);
-  const canSave = amountSatang > 0 && !isSaving && account !== null;
+  const isTransfer = activeTab === "transfer";
+  const hasValidTransfer =
+    !isTransfer ||
+    (account !== null && toAccount !== null && account.id !== toAccount.id);
+
+  const canSave =
+    amountSatang > 0 &&
+    !isSaving &&
+    account !== null &&
+    (!isTransfer || hasValidTransfer);
 
   // โหลดกระเป๋าเงินจริงครั้งเดียวตอนเปิด sheet — ใช้บัญชีแรกเป็นค่าเริ่มต้น
   useEffect(() => {
     let cancelled = false;
     const loadAccount = async () => {
-      const { listAccounts } = await import("@/app/actions/accounts");
       const result = await listAccounts();
       if (cancelled) return;
       if ("data" in result && result.data.length > 0) {
+        setAccounts(result.data);
         setAccount({ id: result.data[0].id, name: result.data[0].name });
+        if (result.data.length > 1) {
+          setToAccount({ id: result.data[1].id, name: result.data[1].name });
+        }
       } else {
         // ไม่มีบัญชีเลย — กันยิง server action ด้วย account_id ปลอม
         setHasNoAccount(true);
@@ -100,14 +121,13 @@ export default function BottomSheet({ onClose }: Props) {
   useEffect(() => {
     if (activeTab === "transfer") return;
     let cancelled = false;
-    const loadCategories = async () => {
-      const { listCategories } = await import("@/app/actions/categories");
+    const loadCats = async () => {
       const result = await listCategories(activeTab);
       if (!cancelled && "data" in result) {
         setCategories(result.data);
       }
     };
-    loadCategories();
+    loadCats();
     return () => {
       cancelled = true;
     };
@@ -134,6 +154,7 @@ export default function BottomSheet({ onClose }: Props) {
   // บันทึก
   const handleSave = async () => {
     if (!canSave || !account) return;
+    if (isTransfer && (!toAccount || toAccount.id === account.id)) return;
     setIsSaving(true);
 
     const tempId = crypto.randomUUID();
@@ -145,8 +166,8 @@ export default function BottomSheet({ onClose }: Props) {
       id: tempId,
       user_id: "optimistic",
       account_id: account.id,
-      category_id: categoryId,
-      to_account_id: null,
+      category_id: isTransfer ? null : categoryId,
+      to_account_id: isTransfer && toAccount ? toAccount.id : null,
       kind: activeTab,
       amount: amountSatang,
       note: note || null,
@@ -155,8 +176,11 @@ export default function BottomSheet({ onClose }: Props) {
       deleted_at: null,
       created_at: now,
       updated_at: now,
-      accounts: null,
-      to_accounts: null,
+      accounts: { id: account.id, name: account.name },
+      to_accounts:
+        isTransfer && toAccount
+          ? { id: toAccount.id, name: toAccount.name }
+          : null,
       categories: null,
     };
 
@@ -165,7 +189,8 @@ export default function BottomSheet({ onClose }: Props) {
     try {
       const result = await createTransaction({
         account_id: account.id,
-        category_id: categoryId,
+        category_id: isTransfer ? null : categoryId,
+        to_account_id: isTransfer && toAccount ? toAccount.id : null,
         kind: activeTab,
         amount: amountSatang,
         note: note || null,
@@ -200,6 +225,12 @@ export default function BottomSheet({ onClose }: Props) {
     setActiveTab(kind);
     setCategoryId(null);
     prevTabRef.current = kind;
+    if (kind === "transfer" && accounts.length > 1) {
+      if (!toAccount || toAccount.id === account?.id) {
+        const alt = accounts.find((a) => a.id !== account?.id);
+        if (alt) setToAccount({ id: alt.id, name: alt.name });
+      }
+    }
   };
 
   return (
@@ -262,6 +293,114 @@ export default function BottomSheet({ onClose }: Props) {
               ))
             )}
           </div>
+          {/* กระเป๋าเงิน (สำหรับ รับ / จ่าย) */}
+          {activeTab !== "transfer" && (
+            <div className="mb-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-text-muted">กระเป๋าเงิน</p>
+                <span className="text-xs text-text-muted">
+                  ใช้: <strong className="font-medium text-text">{account?.name || "-"}</strong>
+                </span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    type="button"
+                    onClick={() => setAccount({ id: acc.id, name: acc.name })}
+                    className={`flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                      account?.id === acc.id
+                        ? "bg-balance text-white shadow-sm"
+                        : "bg-surface text-text active:bg-surface-2"
+                    }`}
+                  >
+                    <span>💰</span>
+                    <span>{acc.name}</span>
+                  </button>
+                ))}
+                {accounts.length === 0 && (
+                  <span className="text-xs text-text-muted">กำลังโหลดกระเป๋าเงิน...</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* การโอนเงิน: เลือกกระเป๋าต้นทาง และกระเป๋าปลายทาง */}
+          {activeTab === "transfer" && (
+            <div className="mb-4 space-y-3">
+              {accounts.length < 2 && (
+                <div className="rounded-xl bg-warn/10 p-3 text-xs text-text">
+                  ต้องมีอย่างน้อย 2 กระเป๋าเงินเพื่อโอนเงินระหว่างกระเป๋า{" "}
+                  <a href="/settings/accounts" className="font-medium underline">
+                    สร้างกระเป๋าเพิ่ม
+                  </a>
+                </div>
+              )}
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs text-text-muted">จากกระเป๋า (ต้นทาง)</p>
+                  <span className="text-xs font-medium text-text">
+                    {account?.name || "-"}
+                  </span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {accounts.map((acc) => (
+                    <button
+                      key={`from-${acc.id}`}
+                      type="button"
+                      onClick={() => {
+                        setAccount({ id: acc.id, name: acc.name });
+                        if (toAccount?.id === acc.id) {
+                          const alt = accounts.find((a) => a.id !== acc.id);
+                          if (alt) setToAccount({ id: alt.id, name: alt.name });
+                        }
+                      }}
+                      className={`flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                        account?.id === acc.id
+                          ? "bg-expense text-white shadow-sm"
+                          : "bg-surface text-text active:bg-surface-2"
+                      }`}
+                    >
+                      <span>{acc.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs text-text-muted">ไปยังกระเป๋า (ปลายทาง)</p>
+                  <span className="text-xs font-medium text-text">
+                    {toAccount?.name || "-"}
+                  </span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {accounts.map((acc) => {
+                    const isSelf = account?.id === acc.id;
+                    return (
+                      <button
+                        key={`to-${acc.id}`}
+                        type="button"
+                        disabled={isSelf}
+                        onClick={() => setToAccount({ id: acc.id, name: acc.name })}
+                        className={`flex flex-shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                          toAccount?.id === acc.id
+                            ? "bg-income text-white shadow-sm"
+                            : isSelf
+                              ? "cursor-not-allowed bg-surface-2 opacity-30 text-text-muted"
+                              : "bg-surface text-text active:bg-surface-2"
+                        }`}
+                      >
+                        <span>{acc.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* หมวดหมู่ (ไม่แสดงสำหรับการโอน) */}
           {activeTab !== "transfer" && (
@@ -341,9 +480,11 @@ export default function BottomSheet({ onClose }: Props) {
           >
             {hasNoAccount
               ? "สร้างกระเป๋าเงินก่อนบันทึก"
-              : isSaving
-                ? "กำลังบันทึก..."
-                : "บันทึกรายการ"}
+              : isTransfer && accounts.length < 2
+                ? "ต้องมีอย่างน้อย 2 กระเป๋าเพื่อโอน"
+                : isSaving
+                  ? "กำลังบันทึก..."
+                  : "บันทึกรายการ"}
           </button>
         </div>
       </div>
