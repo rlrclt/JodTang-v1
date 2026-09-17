@@ -1,6 +1,6 @@
 /**
  * Vision Service for Receipt & Slip Parsing
- * ยิง OpenRouter (google/gemma-4-26b-a4b-it:free) API จริง 100%
+ * ยิง OpenRouter Free Vision Models แบบ Auto-Failover 100%
  */
 
 export type ParsedSlip = {
@@ -27,8 +27,16 @@ const PROMPT = `คุณคือระบบ OCR และสกัดข้�
 - ถ้าเป็นสลิปรับเงิน / ได้รับเงินโอนเข้า -> "kind": "income"
 - amount_baht ต้องเป็นตัวเลขเท่านั้น ห้ามใส่เครื่องหมายจุลภาค`;
 
+// รายชื่อโมเดลฟรีที่รองรับรูปภาพ (Vision) เรียงลำดับตัวที่ว่างและเสถียรที่สุด
+const VISION_MODELS = [
+  "inclusionai/ling-3.0-flash-vl:free",
+  "qwen/qwen3.8-27b:free",
+  "google/gemma-4-26b-a4b-it:free",
+];
+
 /**
- * สกัดข้อมูลสลิปด้วย OpenRouter (google/gemma-4-26b-a4b-it:free) API จริง
+ * สกัดข้อมูลสลิปด้วย OpenRouter Free Vision Pool
+ * ถ้าตัวใดติด 429 Rate-limit จะสลับไปตัวถัดไปทันทีในเสี้ยววินาที
  */
 export async function parseSlipImageWithGemini(
   base64Image: string,
@@ -40,65 +48,80 @@ export async function parseSlipImageWithGemini(
     return { error: "ยังไม่ได้ตั้งค่า OPENROUTER_API_KEY ในไฟล์ .env.local" };
   }
 
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://jodtangv1.vercel.app",
-        "X-Title": "JodTang Finance",
-      },
-      body: JSON.stringify({
-        model: "google/gemma-4-26b-a4b-it:free",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: PROMPT,
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Image}`,
+  let lastError = "";
+
+  for (const model of VISION_MODELS) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://jodtangv1.vercel.app",
+          "X-Title": "JodTang Slip Vision",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: PROMPT,
                 },
-              },
-            ],
-          },
-        ],
-      }),
-    });
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mimeType};base64,${base64Image}`,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      });
 
-    if (!res.ok) {
-      const err = await res.text();
-      return { error: `OpenRouter Error: ${err}` };
+      if (!res.ok) {
+        const err = await res.text();
+        lastError = `${model}: ${err}`;
+        console.warn(`Vision model ${model} failed (${res.status}), trying next model...`);
+        continue;
+      }
+
+      const json = await res.json();
+      let rawText: string = json.choices?.[0]?.message?.content || "";
+
+      // ล้าง Markdown code block ถ้ามี (```json ... ```)
+      rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+
+      // หาขอบเขต JSON ในกรณีที่มีข้อความอื่นปนมา
+      const jsonStart = rawText.indexOf("{");
+      const jsonEnd = rawText.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        rawText = rawText.slice(jsonStart, jsonEnd + 1);
+      }
+
+      const parsed = JSON.parse(rawText);
+      const amountSatang = Math.round((Number(parsed.amount_baht) || 0) * 100);
+
+      if (amountSatang <= 0) {
+        return { error: "ไม่พบยอดเงินที่ถูกต้องในสลิป" };
+      }
+
+      return {
+        data: {
+          kind: parsed.kind === "income" ? "income" : "expense",
+          amount: amountSatang,
+          category: parsed.category || "อื่น ๆ",
+          note: parsed.note || (parsed.kind === "income" ? "รับเงิน" : "จ่ายเงิน"),
+          date: parsed.occurred_at,
+        },
+      };
+    } catch (err: any) {
+      lastError = err.message;
     }
-
-    const json = await res.json();
-    let rawText: string = json.choices?.[0]?.message?.content || "";
-
-    // ล้าง Markdown code block ถ้ามี (```json ... ```)
-    rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-
-    const parsed = JSON.parse(rawText);
-    const amountSatang = Math.round((Number(parsed.amount_baht) || 0) * 100);
-
-    if (amountSatang <= 0) {
-      return { error: "ไม่พบยอดเงินที่ถูกต้องในสลิป" };
-    }
-
-    return {
-      data: {
-        kind: parsed.kind === "income" ? "income" : "expense",
-        amount: amountSatang,
-        category: parsed.category || "อื่น ๆ",
-        note: parsed.note || (parsed.kind === "income" ? "รับเงิน" : "จ่ายเงิน"),
-        date: parsed.occurred_at,
-      },
-    };
-  } catch (err: any) {
-    return { error: `OpenRouter parse error: ${err.message}` };
   }
+
+  return { error: `OpenRouter Error: ${lastError}` };
 }
