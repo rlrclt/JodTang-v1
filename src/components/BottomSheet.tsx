@@ -286,14 +286,13 @@ export default function BottomSheet({ onClose }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 pointer-events-auto"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black opacity-40 transition-opacity duration-200" />
+    <div className="fixed inset-0 z-50">
+      {/* Backdrop — กดพื้นที่นอก sheet เพื่อปิด */}
+      <div
+        className="absolute inset-0 bg-black opacity-40 transition-opacity duration-200"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
       {/* Sheet */}
       <div
