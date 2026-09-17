@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { unlinkLineAccount } from "@/app/actions/line";
 import { useRouter } from "next/navigation";
 
@@ -11,25 +11,10 @@ type Props = {
 };
 
 export default function LineConnectSection({ email, name, lineUserId }: Props) {
-  const [copied, setCopied] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
-  const [polling, setPolling] = useState(false);
   const router = useRouter();
 
   const isConnected = Boolean(lineUserId);
-  const linkCommand = `LINK:${email}`;
-  const botBasicId = process.env.NEXT_PUBLIC_LINE_BOT_BASIC_ID || "";
-
-  // Direct Connect: เปิดแชท LINE Bot พร้อมส่งคำสั่ง LINK:email อัตโนมัติ
-  const directConnectUrl = botBasicId
-    ? `https://line.me/R/oaMessage/${botBasicId.startsWith("@") ? botBasicId : "@" + botBasicId}/?${encodeURIComponent(linkCommand)}`
-    : "";
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(linkCommand);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
 
   const handleUnlink = async () => {
     if (!confirm("ต้องการยกเลิกการเชื่อมต่อกับ LINE Bot ใช่หรือไม่?")) return;
@@ -41,25 +26,6 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
       setUnlinking(false);
     }
   };
-
-  // Polling: เมื่อกดปุ่มเชื่อมต่อแล้ว ตรวจสถานะทุก 3 วินาที
-  useEffect(() => {
-    if (!polling || isConnected) return;
-    const interval = setInterval(() => {
-      router.refresh();
-    }, 3000);
-    // หยุด poll หลัง 2 นาที
-    const timeout = setTimeout(() => setPolling(false), 120_000);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [polling, isConnected, router]);
-
-  // เมื่อเชื่อมต่อสำเร็จ หยุด polling
-  useEffect(() => {
-    if (isConnected) setPolling(false);
-  }, [isConnected]);
 
   return (
     <section className="mt-4 rounded-3xl border border-emerald-500/20 bg-surface/95 p-5 shadow-sm backdrop-blur-xl transition-all select-none">
@@ -116,78 +82,32 @@ export default function LineConnectSection({ email, name, lineUserId }: Props) {
           </div>
         </div>
       ) : (
-        /* State 2: ยังไม่ได้เชื่อมต่อ */
+        /* State 2: ยังไม่ได้เชื่อมต่อ — กดปุ่มเดียว */
         <div className="rounded-2xl border border-border/40 bg-surface-2/70 p-4 space-y-3">
           <div>
             <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
-              เชื่อมต่อง่าย ๆ ใน 2 ขั้นตอน
+              เชื่อมต่อง่าย ๆ ใน 1 คลิก
             </span>
-            <div className="mt-2 space-y-1.5">
-              <p className="text-xs text-text leading-relaxed">
-                <span className="font-bold">① กดปุ่มด้านล่าง</span> → เปิดแชท LINE Bot
-              </p>
-              <p className="text-xs text-text leading-relaxed">
-                <span className="font-bold">② กดส่งข้อความ</span> → ระบบจะผูกบัญชีให้อัตโนมัติ
-              </p>
-            </div>
+            <p className="text-xs text-text leading-relaxed mt-1">
+              กดปุ่มด้านล่างเพื่อล็อกอินด้วยบัญชี LINE ระบบจะเชื่อมต่อให้อัตโนมัติ
+            </p>
           </div>
 
-          {/* ปุ่มกดเปิดแชท LINE Bot พร้อมคำสั่ง LINK */}
-          {directConnectUrl ? (
-            <div className="pt-1">
-              <a
-                href={directConnectUrl}
-                onClick={() => setPolling(true)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                </svg>
-                <span>เปิด LINE เพื่อเชื่อมต่อ</span>
-              </a>
-            </div>
-          ) : null}
-
-          {polling && (
-            <div className="flex items-center gap-2 p-2 rounded-xl bg-focus/5 border border-focus/20">
-              <div className="animate-spin size-3.5 border-2 border-focus border-t-transparent rounded-full" />
-              <span className="text-xs text-focus font-medium">
-                รอรับคำสั่งจาก LINE... กรุณากดส่งข้อความในแอป LINE
-              </span>
-            </div>
-          )}
-
-          {/* หรือคัดลอกคำสั่งด้วยตนเอง */}
-          <div className="pt-2 border-t border-border/30">
-            <span className="text-[10px] text-text-muted">หรือคัดลอกคำสั่งไปส่งในแชทด้วยตนเอง:</span>
-            <div
-              onClick={handleCopy}
-              className="group mt-1 flex items-center justify-between rounded-xl border border-border/60 bg-bg p-3 cursor-pointer transition-all hover:border-focus active:scale-[0.99]"
-              title="คลิกเพื่อคัดลอกคำสั่ง"
+          {/* ปุ่มเชื่อมต่อ LINE — redirect ไป LINE Login OAuth โดยตรง */}
+          <div className="pt-1">
+            <a
+              href="/api/line/connect"
+              className="flex min-h-[48px] w-full items-center justify-center gap-2.5 rounded-2xl bg-[#06C755] px-4 py-3 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] active:scale-[0.99] transition-all text-center"
             >
-              <div className="font-mono text-xs font-bold text-focus">
-                <span>{linkCommand}</span>
-              </div>
-              <div className="flex items-center gap-1 text-[11px] font-bold text-focus">
-                {copied ? (
-                  <>
-                    <span>✓</span>
-                    <span>คัดลอกแล้ว!</span>
-                  </>
-                ) : (
-                  <>
-                    <span>📋</span>
-                    <span className="group-hover:underline">กดคัดลอก</span>
-                  </>
-                )}
-              </div>
-            </div>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+              </svg>
+              <span>เชื่อมต่อบัญชี LINE</span>
+            </a>
           </div>
 
           <p className="text-[10px] text-text-muted leading-normal">
-            💡 เมื่อเชื่อมต่อแล้ว บอทจะแจ้งยืนยันชื่อบัญชีของคุณ และหน้าเว็บจะอัปเดตสถานะอัตโนมัติครับ
+            💡 กดปุ่ม → ล็อกอิน LINE → เชื่อมต่อเสร็จ! บอทจะส่งข้อความยืนยันในแชท LINE ทันทีครับ
           </p>
         </div>
       )}
