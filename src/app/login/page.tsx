@@ -3,9 +3,13 @@ import { validateSessionResult } from "@/lib/middleware-guards";
 
 export const dynamic = "force-dynamic";
 
-// หน้า /login — ปุ่ม Google + LINE (plain <a> เท่านั้น ห้ามใช้ <Link>)
+// หน้า /login — Google เท่านั้น (plain <a> ห้ามใช้ <Link>)
 // <Link> จะ fetch แบบ client-side แล้วตาม redirect ไป accounts.google.com
 // ทำให้โดน CORS block — ต้อง full navigation ด้วย <a> ธรรมดา
+//
+// หมายเหตุ: ปุ่ม LINE login ถูกถอดออกถาวร — Supabase GoTrue ตรวจ ID token
+// ได้เฉพาะ ES256 แต่ LINE เซ็น HS256 (log: malformed jwt HS256; expected ES256)
+// แก้ด้วยโค้ด/env ไม่ได้ เชื่อม LINE ผ่าน LIFF ใน Settings แทน
 // ถ้ามี session อยู่แล้ว redirect ไป /
 export default async function LoginPage() {
   const supabase = await createClient();
@@ -48,20 +52,10 @@ export default async function LoginPage() {
           </svg>
           <span>เข้าสู่ระบบด้วย Google</span>
         </a>
-
-        <a
-          href="/auth/signin?provider=line"
-          className="flex min-h-[52px] items-center justify-center gap-3 rounded-2xl bg-[#06C755] px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-[#06C755]/25 hover:bg-[#05b34c] transition-all active:scale-[0.99]"
-        >
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 5.82 2 10.5c0 4.01 3.44 7.36 8.11 8.48.32.07.75.21.86.48.1.24.06.61.03.85l-.14.83c-.04.26-.21 1.01.88.55.5-.21 7.73-4.54 10.59-7.78C22.27 10.36 22 7.58 22 7c0-2.76-2.24-5-5-5H12zM8.5 13c-.83 0-1.5-.67-1.5-1.5S7.67 10 8.5 10s1.5.67 1.5 1.5S9.33 13 8.5 13zm7 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-          </svg>
-          <span>เข้าสู่ระบบด้วย LINE</span>
-        </a>
         <p className="-mt-2 text-center text-[11px] leading-relaxed text-text-muted">
-          ล็อกอินด้วย LINE ระบบจะเชื่อมบัญชีให้อัตโนมัติ
+          เชื่อมบัญชี LINE ได้หลังล็อกอิน
           <br />
-          พร้อมรับสลิปทางแชทบอทได้ทันที
+          ที่ Settings → บัญชีของฉัน
         </p>
       </div>
     </main>
