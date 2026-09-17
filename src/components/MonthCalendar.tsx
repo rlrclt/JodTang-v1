@@ -411,19 +411,19 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
               </button>
             </div>
 
-            {/* Native iOS Cupertino Drum Wheel Card (ดีไซน์กระจกแก้ว มิติโค้งมนสไตล์ Apple) */}
+            {/* Native iOS Cupertino Drum Wheel Card (รองรับทั้งธีมสว่างและธีมมืด สวยหรูสไตล์ Apple) */}
             {showYearPicker && (
-              <div className="relative mb-3 overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-surface/95 to-surface-2/95 p-3.5 shadow-[0_16px_36px_-8px_rgba(0,0,0,0.18)] backdrop-blur-2xl animate-in zoom-in-95 duration-200">
+              <div className="relative mb-3 overflow-hidden rounded-3xl border border-border/60 bg-surface/95 p-3.5 shadow-[0_12px_32px_-4px_rgba(0,0,0,0.12)] backdrop-blur-2xl animate-in zoom-in-95 duration-200">
                 {/* Header แถบด้านบน */}
-                <div className="mb-2 flex items-center justify-between border-b border-border/30 pb-2 px-1">
+                <div className="mb-2 flex items-center justify-between border-b border-border/40 pb-2 px-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-2 w-2 rounded-full bg-focus animate-pulse" />
+                    <span className="inline-block h-2 w-2 rounded-full bg-focus" />
                     <span className="text-[11px] font-bold text-text">เลือกปี พ.ศ.</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowYearPicker(false)}
-                    className="rounded-full bg-focus/15 px-3 py-0.5 text-[11px] font-extrabold text-focus hover:bg-focus/25 active:scale-95 transition-all"
+                    className="rounded-full bg-focus/10 px-3 py-1 text-[11px] font-bold text-focus hover:bg-focus/20 active:scale-95 transition-all"
                   >
                     เสร็จสิ้น
                   </button>
@@ -431,14 +431,14 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
 
                 {/* 3D Cupertino Cylinder Drum Wheel */}
                 <div className="relative h-32 select-none">
-                  {/* iOS Top Vignette Shade (เงาไล่ระดับด้านบนสร้างมิติโค้งมน 3D) */}
-                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-surface via-surface/70 to-transparent" />
+                  {/* iOS Top Vignette Shade (ไล่เฉดเนียนตาทั้งธีมสว่างและมืด) */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-surface via-surface/80 to-transparent" />
 
-                  {/* iOS Center Lens Indicator (เลนส์โฟกัสตรงกลางพร้อมแสงเงา) */}
-                  <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-10 -translate-y-1/2 rounded-2xl bg-focus/10 border-y border-focus/30 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]" />
+                  {/* iOS Center Lens Indicator (ไม่มีเส้นขอบ border แข็ง ๆ ใช้พื้นหลังไฮไลต์แก้วมนโค้ง) */}
+                  <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-10 -translate-y-1/2 rounded-2xl bg-focus/10 backdrop-blur-xs" />
 
-                  {/* iOS Bottom Vignette Shade (เงาไล่ระดับด้านล่าง) */}
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10 bg-gradient-to-t from-surface via-surface/70 to-transparent" />
+                  {/* iOS Bottom Vignette Shade */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-10 bg-gradient-to-t from-surface via-surface/80 to-transparent" />
 
                   {/* Scrollable Items Container */}
                   <div
@@ -462,11 +462,15 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
                           <div
                             key={y}
                             data-year={y}
-                            onClick={() => setNavYear(y)}
-                            className={`flex h-10 snap-center cursor-pointer items-center justify-center transition-all duration-200 ${
+                            onClick={() => {
+                              setNavYear(y);
+                              // เปลี่ยนปีของเดือนที่กำลังเลือกในระบบทันที
+                              setMonth(`${y}-${pad2(mnum)}-01`);
+                            }}
+                            className={`flex h-10 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
                               isSelected
-                                ? "scale-115 font-black text-focus text-base tracking-tight drop-shadow-xs"
-                                : "scale-90 font-medium text-text-muted text-xs opacity-35 hover:opacity-75"
+                                ? "scale-110 font-extrabold text-focus text-base tracking-tight"
+                                : "scale-90 font-medium text-text-muted text-xs opacity-40 hover:opacity-80"
                             }`}
                           >
                             <span>{thaiYear}</span>
