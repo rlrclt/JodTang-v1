@@ -7,6 +7,110 @@ export type ChatMessage = {
   content: string;
 };
 
+export type ChatSessionRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  messages: ChatMessage[];
+  created_at: string;
+  updated_at: string;
+};
+
+/** ดึงรายการ Sessions ทั้งหมดของผู้ใช้ */
+export async function listChatSessions(): Promise<{
+  sessions?: ChatSessionRow[];
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "กรุณาเข้าสู่ระบบก่อน" };
+
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+
+  if (error) return { error: error.message };
+  return { sessions: (data as ChatSessionRow[]) || [] };
+}
+
+/** บันทึกหรืออัปเดต Session การสนทนา */
+export async function saveChatSession(
+  sessionId: string | null,
+  messages: ChatMessage[],
+  customTitle?: string
+): Promise<{ session?: ChatSessionRow; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "กรุณาเข้าสู่ระบบก่อน" };
+
+  // ตั้งชื่อ Session อัตโนมัติจากคำถามแรกของผู้ใช้ถ้ายังไม่มีชื่อ
+  let title = customTitle;
+  if (!title) {
+    const firstUserMsg = messages.find((m) => m.role === "user");
+    title = firstUserMsg
+      ? firstUserMsg.content.slice(0, 30) + (firstUserMsg.content.length > 30 ? "..." : "")
+      : "บทสนทนาใหม่";
+  }
+
+  if (sessionId) {
+    const { data, error } = await supabase
+      .from("chat_sessions")
+      .update({
+        messages,
+        title,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .select()
+      .single();
+
+    if (error) return { error: error.message };
+    return { session: data as ChatSessionRow };
+  } else {
+    const { data, error } = await supabase
+      .from("chat_sessions")
+      .insert({
+        user_id: user.id,
+        title,
+        messages,
+      })
+      .select()
+      .single();
+
+    if (error) return { error: error.message };
+    return { session: data as ChatSessionRow };
+  }
+}
+
+/** ลบ Session */
+export async function deleteChatSession(sessionId: string): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "กรุณาเข้าสู่ระบบก่อน" };
+
+  const { error } = await supabase
+    .from("chat_sessions")
+    .delete()
+    .eq("id", sessionId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+/** ส่งคำถามให้ AI Advisor */
 export async function askAiAdvisor(
   messages: ChatMessage[]
 ): Promise<{ reply?: string; error?: string }> {
@@ -19,7 +123,7 @@ export async function askAiAdvisor(
     return { error: "กรุณาเข้าสู่ระบบก่อนใช้งาน AI Chatbot" };
   }
 
-  // ดึงยอดรวมและหมวดหมู่ล่าสุดของผู้ใช้มาเป็นบริบทความรู้ (Context) ให้บอทตอบได้ตรงความเป็นจริง
+  // ดึงยอดรวมและหมวดหมู่ล่าสุดของผู้ใช้มาเป็นบริบทความรู้ (Context) ให้บอท
   const { data: accounts } = await supabase
     .from("accounts")
     .select("name, balance")
