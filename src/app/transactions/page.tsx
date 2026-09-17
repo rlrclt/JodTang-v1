@@ -56,10 +56,11 @@ async function getTransactionData(searchParams: SearchParams) {
   if (filters.kind) query = query.eq("kind", filters.kind);
   if (filters.category_id) query = query.eq("category_id", filters.category_id);
   if (filters.account_id) query = query.eq("account_id", filters.account_id);
+  if (filters.date_from) query = query.gte("occurred_at", filters.date_from);
+  if (filters.date_to) query = query.lt("occurred_at", filters.date_to);
   if (filters.search) {
-    query = query.or(
-      `note.ilike.%${filters.search}%,categories.name.ilike.%${filters.search}%`
-    );
+    // ค้นหาใน note ของตาราง transactions โดยตรง (PostgREST or() ข้ามตาราง foreign table ไม่ได้)
+    query = query.ilike("note", `%${filters.search}%`);
   }
 
   const { data: txData, error: txError } = await query;
@@ -77,13 +78,16 @@ async function getTransactionData(searchParams: SearchParams) {
       ? { occurred_at: lastItem.occurred_at, id: lastItem.id }
       : null;
 
-  // คำนวณยอดรวมเดือน (income / expense)
-  const { data: balanceData } = await supabase
+  // คำนวณยอดรวม (income / expense) — เคารพ date_from/date_to ถ้ามี
+  let balanceQuery = supabase
     .from("transactions")
     .select("kind, amount")
     .is("deleted_at", null)
     .gte("occurred_at", start)
     .lt("occurred_at", end);
+  if (filters.date_from) balanceQuery = balanceQuery.gte("occurred_at", filters.date_from);
+  if (filters.date_to) balanceQuery = balanceQuery.lt("occurred_at", filters.date_to);
+  const { data: balanceData } = await balanceQuery;
 
   let totalIncome = 0;
   let totalExpense = 0;

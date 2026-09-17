@@ -235,7 +235,7 @@ export async function listTransactions(params: {
   if (f?.category_id) query = query.eq("category_id", f.category_id);
   if (f?.kind) query = query.eq("kind", f.kind);
   if (f?.search) {
-    query = query.or(`note.ilike.%${f.search}%,categories.name.ilike.%${f.search}%`);
+    query = query.ilike("note", `%${f.search}%`);
   }
 
   const { data, error } = await query;
