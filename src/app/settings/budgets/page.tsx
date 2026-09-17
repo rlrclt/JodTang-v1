@@ -95,6 +95,7 @@ export default async function BudgetsPage({
         <p className="text-text-muted text-sm mb-6">{budgetsRes.error}</p>
         <SmoothLink
           href="/settings"
+          direction="back"
           className="min-h-[44px] rounded-btn bg-surface px-5 py-3 text-sm"
         >
           กลับหน้าตั้งค่า

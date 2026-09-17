@@ -79,7 +79,7 @@ export default function ExportPage() {
       </div>
 
       <div className="mt-6">
-        <SmoothLink href="/settings" className="text-sm text-focus underline">
+        <SmoothLink href="/settings" direction="back" className="text-sm text-focus underline">
           ← กลับไปหน้าตั้งค่า
         </SmoothLink>
       </div>

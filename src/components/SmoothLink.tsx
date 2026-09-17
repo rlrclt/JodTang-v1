@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useSmoothNavigate } from "@/lib/motion/useSmoothNavigate";
+import { useSmoothNavigate, type NavDirection } from "@/lib/motion/useSmoothNavigate";
 
 /**
  * Drop-in replacement for <Link> with View Transition support.
  *
  * - Clicking triggers a smooth cross-fade via `useSmoothNavigate()`
  * - Cmd/Ctrl+click opens a new tab (no transition, browser default)
+ * - `direction` เลือกท่า transition: forward (ดันจากขวา) / back (ดันจากซ้าย) / fade (ค่าเริ่มต้น)
  * - All other Link props are forwarded unchanged
  */
 export function SmoothLink({
@@ -15,8 +16,9 @@ export function SmoothLink({
   children,
   className,
   onClick,
+  direction = "fade",
   ...rest
-}: React.ComponentProps<typeof Link>) {
+}: React.ComponentProps<typeof Link> & { direction?: NavDirection }) {
   const navigate = useSmoothNavigate();
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -34,7 +36,7 @@ export function SmoothLink({
 
     // แปลง href เป็น string สำหรับ navigate
     const path = typeof href === "string" ? href : (href.pathname ?? "/");
-    navigate(path);
+    navigate(path, { direction });
 
     // เรียก onClick ของผู้ใช้ถ้ามี
     onClick?.(e);

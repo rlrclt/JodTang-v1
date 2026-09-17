@@ -1,4 +1,5 @@
 import AccountsList from "./AccountsList";
+import { SmoothLink } from "@/components/SmoothLink";
 import { listAccountsWithBalances, listArchivedAccounts } from "@/app/actions/accounts";
 
 // หน้าจัดการกระเป๋าเงิน (#9 จาก SCREENS.md)
@@ -50,7 +51,7 @@ export default async function AccountsPage() {
 function Header() {
   return (
     <header className="flex items-center gap-2 p-4 pb-2">
-      <a href="/settings" className="p-2 -m-2" aria-label="กลับไปหน้าตั้งค่า">
+      <SmoothLink href="/settings" direction="back" className="p-2 -m-2" aria-label="กลับไปหน้าตั้งค่า">
         <svg
           width="22"
           height="22"
@@ -63,7 +64,7 @@ function Header() {
         >
           <polyline points="15 18 9 12 15 6" />
         </svg>
-      </a>
+      </SmoothLink>
       <h1 className="text-2xl font-bold">กระเป๋าเงิน</h1>
     </header>
   );

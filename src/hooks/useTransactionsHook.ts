@@ -48,6 +48,7 @@ export type TransactionsHook = {
   isFetching: boolean;
   error: string | null;
   addOptimistic: (tx: TransactionItem) => void;
+  refresh: () => Promise<void>;
 };
 
 // แคชเดือนฝั่ง client — ไฟล์นี้ใช้เฉพาะ client component จึงไม่แชร์ข้าม request
