@@ -123,6 +123,7 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [zoom, setZoom] = useState(false);
+  const [showYearPicker, setShowYearPicker] = useState(false);
   const [navYear, setNavYear] = useState(year);
   const [data, setData] = useState<CalendarEntry | null>(() => {
     const cached = calendarCache.get(`${year}-${month}`);
@@ -372,26 +373,90 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
       </div>
       {isExpanded && (
         <div className="mt-3 border-t border-border/40 pt-2.5 animate-in fade-in zoom-in-95 duration-250">
-          <div className="mb-2.5 flex items-center justify-between px-1">
+          <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+            {/* ปุ่มซ้าย: ซูมสลับ 12 เดือน / ปฏิทินวัน */}
             <button
               type="button"
               onClick={() => setZoom((z) => !z)}
-              className="flex items-center gap-1.5 rounded-full bg-focus/10 px-2.5 py-1 text-[11px] font-bold text-focus transition-all active:scale-95 hover:bg-focus/20"
+              className="flex items-center gap-1 rounded-full bg-focus/10 px-2.5 py-1 text-[11px] font-bold text-focus transition-all active:scale-95 hover:bg-focus/20"
             >
-              <span>{zoom ? "📅 กลับไปดูปฏิทินรายวัน" : "🔍 ซูมดูทั้ง 12 เดือน (เลือกปี)"}</span>
+              <span>{zoom ? "📅 ปฏิทินวัน" : "🔍 12 เดือน"}</span>
             </button>
+
+            {/* ปุ่มกลาง: กะทัดรัด แตะเปิดตัวหมุนปี iOS Wheel */}
+            <button
+              type="button"
+              onClick={() => setShowYearPicker((p) => !p)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold transition-all active:scale-95 shadow-xs ${
+                showYearPicker
+                  ? "bg-focus text-white"
+                  : "bg-surface-2 text-text hover:bg-surface-2/80"
+              }`}
+              title="แตะเพื่อหมุนเลื่อนเลือกปีแบบ iOS"
+            >
+              <span>พ.ศ. {navYear + BE}</span>
+              <span className="text-[9px] opacity-70">▾</span>
+            </button>
+
+            {/* ปุ่มขวา: พับเก็บ */}
             <button
               type="button"
               onClick={() => {
                 setIsExpanded(false);
                 setZoom(false);
+                setShowYearPicker(false);
               }}
               className="flex items-center gap-1 rounded-full bg-surface-2/80 px-2.5 py-1 text-[11px] font-medium text-text-muted hover:text-text active:scale-95 transition-all"
             >
-              <span>พับเก็บ</span>
-              <span>✕</span>
+              <span>พับเก็บ ✕</span>
             </button>
           </div>
+
+          {/* iOS Drum Wheel Popover / Dropdown (กะทัดรัด สวยหรู สไตล์ iOS DatePicker) */}
+          {showYearPicker && (
+            <div className="mb-3 rounded-2xl border border-focus/20 bg-surface-2/90 p-2.5 shadow-lg backdrop-blur-xl animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between px-2 mb-1">
+                <span className="text-[10px] font-semibold text-text-muted">หมุนเลื่อนขึ้น-ลงเพื่อเลือกปี</span>
+                <button
+                  type="button"
+                  onClick={() => setShowYearPicker(false)}
+                  className="text-[10px] font-bold text-focus hover:underline"
+                >
+                  เสร็จสิ้น ✓
+                </button>
+              </div>
+              <div
+                className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
+                tabIndex={0}
+                aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
+              >
+                <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/15 border-y border-focus/30" />
+                {Array.from({ length: 31 }, (_, i) => {
+                  const y = today.year - 15 + i;
+                  const isSelected = y === navYear;
+                  const thaiYearText = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+                    year: "numeric",
+                  }).format(new Date(y, 0, 1));
+
+                  return (
+                    <div
+                      key={y}
+                      onClick={() => {
+                        setNavYear(y);
+                      }}
+                      className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-150 ${
+                        isSelected
+                          ? "scale-110 text-sm font-extrabold text-focus"
+                          : "scale-90 text-xs font-semibold text-text-muted opacity-40 hover:opacity-80"
+                      }`}
+                    >
+                      {thaiYearText} ({y})
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {/* stage — 2 มุมมองซ้อนกัน ซูมสลับ สไตล์ iOS (cubic-bezier transition) */}
           <div className="relative overflow-hidden">
         <div
@@ -453,48 +518,7 @@ export default function MonthCalendar({ month, setMonth, summary }: Props) {
               : "pointer-events-none absolute inset-0 translate-y-3.5 scale-75 opacity-0"
           }`}
         >
-          {/* iOS Vertical Drum / Wheel Picker (เลื่อนลูกกลิ้งขึ้นลงสไตล์วงล้อนาฬิกา iOS) */}
-          <div className="mb-3 rounded-2xl bg-surface-2/60 p-2 border border-border/40">
-            <div className="flex items-center justify-between px-2 mb-1">
-              <span className="text-[10px] font-semibold text-text-muted">หมุนเลื่อนปี (iOS Wheel)</span>
-              <span className="text-[11px] font-extrabold text-focus">
-                {new Intl.DateTimeFormat("th-TH-u-ca-buddhist", { year: "numeric" }).format(new Date(navYear, 0, 1))}
-              </span>
-            </div>
 
-            {/* 3D Cylindrical Vertical Wheel Container */}
-            <div
-              className="relative h-28 overflow-y-auto snap-y snap-mandatory scroll-smooth py-9 text-center scrollbar-hide"
-              tabIndex={0}
-              aria-label="ตัวเลื่อนเลือกปีแบบ iOS"
-            >
-              {/* Selection Indicator Bars (เส้นไฮไลต์เลนส์ตรงกลางแบบ iOS) */}
-              <div className="pointer-events-none sticky top-1/2 -translate-y-1/2 h-9 -mx-2 rounded-xl bg-focus/10 border-y border-focus/25 backdrop-blur-xs" />
-
-              {/* รายการปี สร้างไดนามิกอิงจากปีสากลปัจจุบัน (Intl) ถอยหลัง-เดินหน้า 50 ปี */}
-              {Array.from({ length: 41 }, (_, i) => {
-                const y = today.year - 20 + i;
-                const isSelected = y === navYear;
-                const thaiYearText = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
-                  year: "numeric",
-                }).format(new Date(y, 0, 1));
-
-                return (
-                  <div
-                    key={y}
-                    onClick={() => setNavYear(y)}
-                    className={`flex h-9 snap-center cursor-pointer items-center justify-center transition-all duration-200 ${
-                      isSelected
-                        ? "scale-110 text-sm font-extrabold text-focus"
-                        : "scale-90 text-xs font-semibold text-text-muted opacity-45 hover:opacity-80"
-                    }`}
-                  >
-                    {thaiYearText} ({y})
-                  </div>
-                );
-              })}
-            </div>
-          </div>
           <div className="grid grid-cols-3 gap-2 pt-0.5">
             {Array.from({ length: 12 }, (_, i) => {
               const m = i + 1;
