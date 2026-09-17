@@ -61,18 +61,30 @@ export default async function SummaryPage({
   );
 
   // คำนวณ summary (pure functions)
-  const expenses = computeCategoryExpenses(transactions);
-  const trend = computeSixMonthTrend(transactions, selectedYear, selectedMonth);
-  const budgetProgress = computeBudgetProgress(transactions, budgets);
+  // กรอง transactions เฉพาะของเดือนที่เลือก สำหรับ category expenses และยอดรวมเดือนนี้
+  const currentMonthTransactions = transactions.filter((t) => {
+    const d = new Date(t.occurred_at);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Bangkok",
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(d);
+    const y = parseInt(parts.find((p) => p.type === "year")!.value);
+    const m = parseInt(parts.find((p) => p.type === "month")!.value);
+    return y === selectedYear && m === selectedMonth;
+  });
+
+  const expenses = computeCategoryExpenses(currentMonthTransactions);
+  const trend = computeSixMonthTrend(transactions, selectedYear, selectedMonth, 12);
+  const budgetProgress = computeBudgetProgress(currentMonthTransactions, budgets);
 
   // คำนวณยอดเดือนนี้
   let totalIncome = 0;
   let totalExpense = 0;
-  for (const t of transactions) {
+  for (const t of currentMonthTransactions) {
     if (t.kind === "income") totalIncome += t.amount;
     else if (t.kind === "expense") totalExpense += t.amount;
   }
-
   // คำนวณเดือนก่อนหน้าสำหรับปุ่ม ‹
   let prevYear = selectedYear;
   let prevMonth = selectedMonth - 1;

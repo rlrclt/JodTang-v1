@@ -56,8 +56,15 @@ export async function getSummaryData(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { transactions: [], budgets: [], year: y, month: m };
 
-  const { start, end } = getMonthRange(y, m);
-
+  // คำนวณช่วงเวลาย้อนหลัง 12 เดือน (11 เดือนก่อนหน้า + เดือนปัจจุบัน)
+  let startYear = y;
+  let startMonth = m - 11;
+  while (startMonth <= 0) {
+    startMonth += 12;
+    startYear -= 1;
+  }
+  const { start } = getMonthRange(startYear, startMonth);
+  const { end } = getMonthRange(y, m);
   // ดึง transactions ทั้งหมดของเดือน (keyset pagination)
   const transactions: TransactionRecord[] = [];
   let cursor: { occurred_at: string; id: string } | null = null;

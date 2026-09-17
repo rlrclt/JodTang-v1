@@ -103,11 +103,12 @@ const THAI_MONTHS = [
 export function computeSixMonthTrend(
   transactions: TransactionRecord[],
   currentYear: number,
-  currentMonth: number
+  currentMonth: number,
+  monthsCount = 12
 ): MonthTrend[] {
-  // สร้าง array 6 เดือน (เก่าสุด → ใหม่สุด)
+  // สร้าง array ย้อนหลัง monthsCount เดือน (ค่า default = 12 เดือน)
   const months: { year: number; month: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
+  for (let i = monthsCount - 1; i >= 0; i--) {
     let m = currentMonth - i;
     let y = currentYear;
     while (m <= 0) {
@@ -150,7 +151,6 @@ export function computeSixMonthTrend(
 
   return result;
 }
-
 // ─── Budget progress ───
 
 /**
