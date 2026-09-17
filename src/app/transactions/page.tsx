@@ -139,6 +139,7 @@ export default async function TransactionsPage({
   return (
     <Suspense>
       <TransactionPageClient
+        key={JSON.stringify(result.filters) + result.year + result.month}
         initialItems={result.items}
         nextCursor={result.nextCursor}
         year={result.year}

@@ -82,7 +82,7 @@ export default function HomePage() {
   const isEmpty = transactions.length === 0;
 
   return (
-    <div className="p-4">
+    <div className="p-4 pb-28">
       {/* เดือนavigator */}
       <div className="mb-4 flex items-center justify-between">
         <button

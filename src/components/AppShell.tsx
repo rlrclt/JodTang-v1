@@ -20,7 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-[100dvh] bg-bg text-text">
       <main
         className={
-          showShell ? "pb-[calc(env(safe-area-inset-bottom)+56px)]" : ""
+          showShell ? "pb-[calc(env(safe-area-inset-bottom)+110px)]" : ""
         }
         style={{ minHeight: "100dvh" }}
       >

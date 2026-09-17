@@ -55,7 +55,7 @@ export default function SummaryContent(props: Props) {
   } = props;
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-4">
+    <div className="mx-auto max-w-lg px-4 pt-4 pb-28">
       {/* Month navigation */}
       <div className="mb-4 flex items-center justify-between">
         <SmoothLink

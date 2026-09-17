@@ -20,7 +20,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">ตั้งค่า</h1>
       </header>
 
-      <main className="flex-1 px-4 pb-4">
+      <main className="flex-1 px-4 pb-28">
         <section aria-label="การตั้งค่าทั้งหมด" className="grid gap-2">
           {items.map((item) => (
             <SmoothLink

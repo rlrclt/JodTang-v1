@@ -52,6 +52,7 @@ export default function TransactionPageClient({
   const [items, setItems] = useState<TransactionRow[]>(initialItems);
   const [cursor, setCursor] = useState<Cursor>(initialCursor);
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<TransactionRow | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ export default function TransactionPageClient({
       </div>
 
       {/* Transaction list */}
-      <div className="mt-2">
+      <div className="mt-2 pb-28">
         {items.length === 0 && !loading ? (
           <EmptyState />
         ) : (
