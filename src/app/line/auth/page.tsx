@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import liff from "@line/liff";
-import { authenticateWithLine } from "../actions";
+import { authenticateWithLine } from "../auth";
 
 const DEFAULT_LIFF_ID = "2011649062-neOljV8x";
 
