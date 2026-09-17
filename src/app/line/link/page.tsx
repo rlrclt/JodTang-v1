@@ -51,7 +51,8 @@ export default function LiffLinkPage() {
         // ต้องใช้ absolute URL + full navigation เพื่อหลุดออกจาก LIFF webview
         // กลับไปเบราว์เซอร์ปกติ (router.push แบบ relative จะค้างอยู่ใน liff.line.me)
         const appUrl =
-          process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
+          process.env.NEXT_PUBLIC_APP_URL ||
+          "https://jodtangv1.vercel.app";
         setRedirecting(true);
         window.location.href = `${appUrl}/line/claim?token=${token}`;
       } catch (err: any) {

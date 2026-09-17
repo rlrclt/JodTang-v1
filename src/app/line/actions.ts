@@ -14,10 +14,15 @@ import { createClient as createUserClient } from "@/lib/supabase/server";
  */
 
 function getAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
   return createClient(url, key);
 }
+
+const MISSING_CONFIG_ERROR =
+  "เซิร์ฟเวอร์ยังไม่ตั้งค่า Supabase ฝั่ง server (SUPABASE_SECRET_KEY) ติดต่อแอดมินครับ";
 
 /** สร้าง token ใช้ครั้งเดียว อายุ 10 นาที — เก็บ line_user_id จาก LIFF */
 export async function createLineLinkToken(
@@ -26,18 +31,25 @@ export async function createLineLinkToken(
 ): Promise<{ token?: string; error?: string }> {
   if (!lineUserId) return { error: "ไม่พบ LINE userId" };
 
+  const admin = getAdmin();
+  if (!admin) return { error: MISSING_CONFIG_ERROR };
+
   const token = crypto.randomBytes(24).toString("hex");
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  const { error } = await getAdmin().from("line_link_tokens").insert({
-    token,
-    line_user_id: lineUserId,
-    line_display_name: lineDisplayName ?? null,
-    expires_at: expiresAt,
-  });
+  try {
+    const { error } = await admin.from("line_link_tokens").insert({
+      token,
+      line_user_id: lineUserId,
+      line_display_name: lineDisplayName ?? null,
+      expires_at: expiresAt,
+    });
 
-  if (error) return { error: error.message };
-  return { token };
+    if (error) return { error: error.message };
+    return { token };
+  } catch (err: any) {
+    return { error: err?.message ?? "สร้าง token ไม่สำเร็จ" };
+  }
 }
 
 /** ผู้ใช้ที่ล็อกอินเว็บแล้ว เอา token มาแลกเพื่อผูก line_user_id เข้าบัญชีตัวเอง */
@@ -54,46 +66,51 @@ export async function claimLineLinkToken(
   if (!clean) return { error: "ไม่พบ token" };
 
   const admin = getAdmin();
+  if (!admin) return { error: MISSING_CONFIG_ERROR };
 
-  const { data: linkRow, error: findErr } = await admin
-    .from("line_link_tokens")
-    .select("id, line_user_id, line_display_name, expires_at, used_at")
-    .eq("token", clean)
-    .is("used_at", null)
-    .maybeSingle();
+  try {
+    const { data: linkRow, error: findErr } = await admin
+      .from("line_link_tokens")
+      .select("id, line_user_id, line_display_name, expires_at, used_at")
+      .eq("token", clean)
+      .is("used_at", null)
+      .maybeSingle();
 
-  if (findErr || !linkRow) {
-    return { error: "token ไม่ถูกต้องหรือถูกใช้แล้ว" };
+    if (findErr || !linkRow) {
+      return { error: "token ไม่ถูกต้องหรือถูกใช้แล้ว" };
+    }
+
+    if (new Date(linkRow.expires_at).getTime() < Date.now()) {
+      return { error: "token หมดอายุแล้ว กรุณาเริ่มใหม่ผ่าน LINE" };
+    }
+
+    // กัน LINE นี้ถูกผูกกับบัญชีอื่นแล้ว
+    const { data: existing } = await admin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("line_user_id", linkRow.line_user_id)
+      .maybeSingle();
+
+    if (existing && existing.id !== user.id) {
+      return {
+        error: `LINE นี้ถูกเชื่อมกับบัญชี "${existing.full_name ?? "อื่น"}" แล้ว`,
+      };
+    }
+
+    const { error: updateErr } = await admin
+      .from("profiles")
+      .update({ line_user_id: linkRow.line_user_id })
+      .eq("id", user.id);
+
+    if (updateErr) return { error: updateErr.message };
+
+    await admin
+      .from("line_link_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", linkRow.id);
+
+    return { lineDisplayName: linkRow.line_display_name ?? undefined };
+  } catch (err: any) {
+    return { error: err?.message ?? "เชื่อมต่อไม่สำเร็จ" };
   }
-
-  if (new Date(linkRow.expires_at).getTime() < Date.now()) {
-    return { error: "token หมดอายุแล้ว กรุณาเริ่มใหม่ผ่าน LINE" };
-  }
-
-  // กัน LINE นี้ถูกผูกกับบัญชีอื่นแล้ว
-  const { data: existing } = await admin
-    .from("profiles")
-    .select("id, full_name")
-    .eq("line_user_id", linkRow.line_user_id)
-    .maybeSingle();
-
-  if (existing && existing.id !== user.id) {
-    return {
-      error: `LINE นี้ถูกเชื่อมกับบัญชี "${existing.full_name ?? "อื่น"}" แล้ว`,
-    };
-  }
-
-  const { error: updateErr } = await admin
-    .from("profiles")
-    .update({ line_user_id: linkRow.line_user_id })
-    .eq("id", user.id);
-
-  if (updateErr) return { error: updateErr.message };
-
-  await admin
-    .from("line_link_tokens")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", linkRow.id);
-
-  return { lineDisplayName: linkRow.line_display_name ?? undefined };
 }
