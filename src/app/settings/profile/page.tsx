@@ -22,7 +22,7 @@ export default async function ProfilePage() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("full_name, email, avatar_url")
+    .select("full_name, email, avatar_url, line_user_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -71,6 +71,36 @@ export default async function ProfilePage() {
             </dl>
           </section>
         )}
+
+        {/* LINE Bot Integration Card */}
+        <section className="mt-4 rounded-3xl border border-emerald-500/20 bg-surface p-5 shadow-xs">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#06C755] text-white font-black text-xl shadow-sm">
+              L
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text">เชื่อมต่อ LINE Bot จดบันทึกด่วน</h3>
+              <p className="text-[11px] text-text-muted">ส่งรูปสลิป/ใบเสร็จใน LINE เพื่อบันทึกอัตโนมัติ</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-surface-2/80 p-3 text-xs text-text space-y-2 border border-border/40">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-text-muted">สถานะการเชื่อมต่อ:</span>
+              <span className={`font-bold px-2 py-0.5 rounded-full text-[10px] ${profile?.line_user_id ? "bg-income/10 text-income" : "bg-warn/10 text-warn"}`}>
+                {profile?.line_user_id ? "✓ เชื่อมต่อแล้ว" : "ยังไม่ได้เชื่อมต่อ"}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              วิธีเชื่อมต่อ: เพิ่มเพื่อนกับ LINE Bot ของคุณ แล้วพิมพ์คำสั่งนี้ส่งไปในแชท:
+            </p>
+            <div className="flex items-center justify-between rounded-xl bg-bg px-3 py-2 font-mono text-xs font-bold text-focus border border-border/50">
+              <span>LINK:{user.email}</span>
+              <span className="text-[10px] font-sans text-text-muted font-normal">คัดลอกส่งใน LINE</span>
+            </div>
+          </div>
+        </section>
         <ResetDataSection />
       </main>
     </div>
@@ -80,7 +110,7 @@ export default async function ProfilePage() {
 function Header() {
   return (
     <header className="flex items-center gap-2 p-4 pb-2">
-      <SmoothLink href="/settings" className="-m-2 p-2" aria-label="กลับไปหน้าตั้งค่า">
+      <SmoothLink href="/settings" direction="back" className="-m-2 p-2" aria-label="กลับไปหน้าตั้งค่า">
         <svg
           width="22"
           height="22"
