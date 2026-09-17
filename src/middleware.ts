@@ -9,11 +9,10 @@ import {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ข้าม public paths เลย — ไม่ต้องตรวจ session
-  if (isPublicPath(pathname)) {
+  // ปล่อยผ่าน Webhook และ Public paths ทันที — ห้ามติด Redirect เด็ดขาด
+  if (pathname.startsWith("/api/line/webhook") || isPublicPath(pathname)) {
     return NextResponse.next();
   }
-
   // ถ้า Supabase ยังไม่ตั้งค่า ปล่อยผ่าน (ไม่ block ตอน dev ยังไม่มี env)
   if (!isSupabaseConfigured()) {
     return NextResponse.next();
