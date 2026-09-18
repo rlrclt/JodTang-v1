@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>1 — Bottom Sheet Calendar</title>
+<style>
+  :root {
+    --bg: #fafafa; --surface: #ffffff; --surface-2: #f5f5f5;
+    --border: #e5e7eb; --text: #1a1a1a; --muted: #6b7280;
+    --focus: #3b82f6; --radius: 16px; --safe: env(safe-area-inset-bottom);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "IBM Plex Sans Thai", sans-serif; background: var(--bg); color: var(--text); max-width: 390px; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ─── หน้าจำลอง (hab header จากหน้าแรก) ─── */
+  .demo-page { flex: 1; padding: 16px; overflow-y: auto; }
+  .demo-card { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .demo-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .nav-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .nav-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--surface); font-size: 20px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .month-btn { border: none; background: none; cursor: pointer; padding: 4px 12px; border-radius: 10px; color: var(--text); }
+  .month-btn:active { background: var(--surface-2); }
+
+  /* ─── Overlay ─── */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+
+  /* ─── Bottom Sheet ─── */
+  .sheet { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: var(--surface); border-radius: 20px 20px 0 0; padding: 12px 20px calc(20px + var(--safe)); transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.32,0.72,0,1); max-height: 80dvh; overflow-y: auto; }
+  .sheet.show { transform: translateY(0); }
+  .handle { width: 36px; height: 5px; border-radius: 99px; background: var(--border); margin: 0 auto 12px; }
+
+  /* ─── Calendar ─── */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-title { font-size: 16px; font-weight: 600; }
+  .cal-arrow { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--surface-2); font-size: 16px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .cal-arrow:active { background: var(--border); }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-dow { font-size: 11px; color: var(--muted); text-align: center; padding: 4px 0; font-weight: 500; }
+  .cal-day { aspect-ratio: 1; border: none; border-radius: 50%; background: none; font-size: 14px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
+  .cal-day.outside { color: var(--border); }
+  .cal-day.today::after { content: ""; position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--focus); }
+  .cal-day.selected { background: var(--focus); color: #fff; font-weight: 600; }
+  .cal-day.selected::after { background: #fff; }
+  .cal-day:active { background: var(--surface-2); }
+  .cal-day.selected:active { background: var(--focus); }
+
+  .confirm-row { margin-top: 16px; text-align: center; }
+  .confirm-btn { background: var(--focus); color: #fff; border: none; border-radius: var(--radius); padding: 12px 32px; font-size: 15px; font-weight: 600; cursor: pointer; min-height: 48px; }
+  .confirm-btn:active { opacity: 0.85; }
+
+  .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="demo-page">
+  <div class="nav-row">
+    <button class="nav-btn">‹</button>
+    <button class="month-btn" id="monthHeader" onclick="openSheet()">
+      <span id="monthLabel">กันยายน 2569</span>
+    </button>
+    <button class="nav-btn">›</button>
+  </div>
+  <div class="demo-card">
+    <div class="label">ตัวอย่างหน้าแรก</div>
+    <p>แตะชื่อเดือนด้านบนเพื่อเปิดปฏิทินเลือกวันที่ในรูปแบบ <strong>Bottom Sheet</strong> เลื่อนขึ้นจากล่างจอ</p>
+  </div>
+  <div class="demo-card">
+    <div class="label">ลักษณะเด่น</div>
+    <p>• ลื่น เข้ากับภาษา UI ของแอป<br/>• ใช้ component ปฏิทินเดิมซ้ำกับ.sheet อื่นได้<br/>• คลุมด้วย overlay ปิดได้ด้วยการปัดลง/แตะด้านนอก<br/>• พื้นที่ compact ไม่กินจอเต็ม</p>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="handle"></div>
+  <div class="cal-header">
+    <button class="cal-arrow" onclick="shiftYear(-1)">‹</button>
+    <span class="cal-title" id="calTitle">กันยายน 2569</span>
+    <button class="cal-arrow" onclick="shiftYear(1)">›</button>
+  </div>
+  <div class="cal-header" style="margin-bottom:12px">
+    <button class="cal-arrow" style="width:28px;height:28px;font-size:13px" onclick="shiftMonth(-1)">‹</button>
+    <span style="font-size:14px;font-weight:600" id="calMonthLabel">กันยายน</span>
+    <button class="cal-arrow" style="width:28px;height:28px;font-size:13px" onclick="shiftMonth(1)">›</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="confirm-row">
+    <button class="confirm-btn" onclick="closeSheet()">เสร็จสิ้น</button>
+  </div>
+</div>
+
+<script>
+  // วันที่จำลอง 17 ก.ย. 2569 (กันยายน 2026)
+  const THAI_MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const THAI_DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+  let curYear = 2569, curMonth = 8; // 0-indexed: 8 = กันยายน
+  let selDate = 16; // คลิกวันที่ 17 (index 16 ในวันที่)
+
+  function thaiDate(y, m, d) { return `${THAI_MONTHS[m]} ${y + 543}`; }
+
+  function render() {
+    const title = thaiDate(curYear, curMonth);
+    document.getElementById("monthLabel").textContent = title;
+    document.getElementById("calTitle").textContent = title;
+    document.getElementById("calMonthLabel").textContent = THAI_MONTHS[curMonth];
+
+    const grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    THAI_DOW.forEach(d => { const el = document.createElement("div"); el.className = "cal-dow"; el.textContent = d; grid.appendChild(el); });
+
+    const firstDay = new Date(curYear - 543, curMonth, 1).getDay();
+    const daysInMonth = new Date(curYear - 543, curMonth + 1, 0).getDate();
+    const daysInPrev = new Date(curYear - 543, curMonth, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+      const btn = document.createElement("button");
+      btn.className = "cal-day outside";
+      btn.textContent = daysInPrev - firstDay + i + 1;
+      grid.appendChild(btn);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const btn = document.createElement("button");
+      btn.className = "cal-day";
+      if (d === 17) btn.classList.add("today");
+      if (d === selDate + 1) btn.classList.add("selected");
+      btn.textContent = d;
+      btn.onclick = () => { selDate = d - 1; render(); };
+      grid.appendChild(btn);
+    }
+    const total = firstDay + daysInMonth;
+    const remain = total % 7 === 0 ? 0 : 7 - (total % 7);
+    for (let i = 1; i <= remain; i++) {
+      const btn = document.createElement("button");
+      btn.className = "cal-day outside";
+      btn.textContent = i;
+      grid.appendChild(btn);
+    }
+  }
+
+  function shiftYear(d) { curYear += d; render(); }
+  function shiftMonth(d) { curMonth += d; if (curMonth < 0) { curMonth = 11; curYear--; } if (curMonth > 11) { curMonth = 0; curYear++; } render(); }
+
+  function openSheet() { document.getElementById("overlay").classList.add("show"); document.getElementById("sheet").classList.add("show"); }
+  function closeSheet() { document.getElementById("overlay").classList.remove("show"); document.getElementById("sheet").classList.remove("show"); }
+
+  render();
+</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import {
   type ChatMessage,
   type ChatSessionRow,
 } from "@/app/actions/chat";
+import { renderMarkdown } from "./MarkdownChat";
 
 type Props = {
   onClose: () => void;
@@ -280,7 +281,7 @@ export default function ChatbotModal({ onClose }: Props) {
                       : "bg-surface-2/90 text-text border border-border/40 rounded-bl-xs whitespace-pre-wrap"
                   }`}
                 >
-                  {m.content}
+                  {m.role === "assistant" ? renderMarkdown(m.content) : m.content}
                 </div>
               </div>
             ))}

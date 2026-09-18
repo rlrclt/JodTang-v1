@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>4 — เต็มจอ Month/Year Picker</title>
+<style>
+  :root {
+    --bg: #fafafa; --surface: #ffffff; --surface-2: #f5f5f5;
+    --border: #e5e7eb; --text: #1a1a1a; --muted: #6b7280;
+    --focus: #3b82f6; --radius: 16px; --safe: env(safe-area-inset-bottom);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "IBM Plex Sans Thai", sans-serif; background: var(--bg); color: var(--text); max-width: 390px; margin: 0 auto; }
+
+  /* ─── หน้าเต็มจอ Picker (จำลอง navigation ด้วย hidden) ─── */
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); opacity: 0; pointer-events: none; transform: translateY(24px); transition: all 0.3s; }
+  .screen.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  .head { display: flex; align-items: center; gap: 8px; padding: 12px 8px 12px 16px; }
+  .back { width: 40px; height: 40px; border: none; background: none; color: var(--text); font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .head-title { font-size: 17px; font-weight: 700; }
+
+  .main { flex: 1; overflow-y: auto; padding: 8px 16px 24px; }
+
+  /* แถบเลือกโหมด */
+  .seg { display: flex; background: var(--surface-2); border-radius: 12px; padding: 3px; margin-bottom: 16px; }
+  .seg button { flex: 1; border: none; background: none; color: var(--muted); font-size: 13px; font-weight: 600; padding: 9px 0; border-radius: 10px; cursor: pointer; }
+  .seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+  /* เลือกปี */
+  .year-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .year-label { font-size: 16px; font-weight: 600; }
+  .year-arrows { display: flex; gap: 8px; }
+  .yr-btn { width: 34px; height: 34px; border: none; border-radius: 10px; background: var(--surface-2); font-size: 16px; color: var(--text); cursor: pointer; }
+  .yr-btn:active { background: var(--border); }
+
+  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .month-cell { border: 1.5px solid var(--border); background: var(--surface); border-radius: 14px; padding: 18px 8px; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; transition: all 0.15s; }
+  .month-cell:active { background: var(--surface-2); }
+  .month-cell.selected { border-color: var(--focus); background: #eff6ff; color: var(--focus); }
+  .month-cell.today { border-style: dashed; }
+
+  .year-label-big { font-size: 34px; font-weight: 800; text-align: center; padding: 20px 0 8px; tabular-nums: true; font-variant-numeric: tabular-nums; }
+  .year-desc { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+  .bottom-cta { padding: 12px 16px calc(16px + var(--safe)); border-top: 1px solid var(--border); background: var(--surface); }
+  .cta-btn { width: 100%; border: none; background: var(--focus); color: #fff; font-size: 15px; font-weight: 600; padding: 15px 0; border-radius: 14px; cursor: pointer; min-height: 52px; }
+  .cta-btn:active { opacity: 0.85; }
+
+  /* หน้าจำลองเริ่ม (หน้าแรก) */
+  .demo { padding: 16px; }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .nav-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--surface); font-size: 20px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .month-btn { border: none; background: none; cursor: pointer; padding: 4px 12px; border-radius: 10px; color: var(--text); }
+  .month-btn:active { background: var(--surface-2); }
+  .card { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- หน้าแรกจำลอง -->
+<div class="demo" id="demoScreen">
+  <div class="nav-row">
+    <button class="nav-btn">‹</button>
+    <button class="month-btn" onclick="openPicker()">
+      <span id="homeLabel">กันยายน 2569</span>
+    </button>
+    <button class="nav-btn">›</button>
+  </div>
+  <div class="card">
+    <div class="label">ตัวอย่างหน้าแรก</div>
+    <p>แตะชื่อเดือน → slide ไปหน้าเต็มจอ เลือกได้ทั้งเดือน + ปี (ปัดเลื่อนปีไปเรื่อยๆ ได้)</p>
+  </div>
+  <div class="card">
+    <div class="label">ลักษณะเด่น</div>
+    <p>• เลือกได้ทั้ง "เดือน" และ "ปี" อย่างรวดเร็ว<br/>• จอใหญ่ ไม่แน่น แตะง่าย<br/>• เหมาะกับคนที่ต้องข้ามเดือนไกลๆ (้กดปีเลย)<br/>• พื้นที่ว่างด้านล่างไว้แยกโหมดวันได้ในอนาคต</p>
+  </div>
+</div>
+
+<!-- Picker เต็มจอ -->
+<div class="screen" id="pickerScreen">
+  <div class="head">
+    <button class="back" onclick="closePicker()">‹</button>
+    <span class="head-title">เลือกเดือน</span>
+  </div>
+  <div class="seg">
+    <button id="segMonth" class="on" onclick="setMode('month')">เดือน</button>
+    <button id="segYear" onclick="setMode('year')">ปี</button>
+  </div>
+
+  <div class="main" id="monthMode">
+    <div class="year-nav">
+      <span class="year-label" id="yearLabel">2569</span>
+      <div class="year-arrows">
+        <button class="yr-btn" onclick="shiftYear(-1)">‹</button>
+        <button class="yr-btn" onclick="shiftYear(1)">›</button>
+      </div>
+    </div>
+    <div class="month-grid" id="monthGrid"></div>
+  </div>
+
+  <div class="main" id="yearMode" style="display:none; text-align:center">
+    <div class="year-label-big" id="bigYear">2569</div>
+    <p class="year-desc">แตะปีที่ต้องการ (ปัดบน-ล่างเพื่อดูปีอื่น)</p>
+    <div id="yearGrid" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; max-width:300px; margin:0 auto"></div>
+  </div>
+
+  <div class="bottom-cta">
+    <button class="cta-btn" onclick="closePicker()">ใช้เดือนนี้</button>
+  </div>
+</div>
+
+<script>
+  const MONTHS_TH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  let cy = 2569, cm = 8; // ก.ย. 2569
+  const today = { y: 2569, m: 8 };
+
+  function title() { return `${MONTHS_TH[cm]} ${cy}`; }
+
+  function renderMonths() {
+    document.getElementById("yearLabel").textContent = cy;
+    const grid = document.getElementById("monthGrid");
+    grid.innerHTML = "";
+    MONTHS_TH.forEach((m, i) => {
+      const b = document.createElement("button");
+      b.className = "month-cell";
+      if (i === cm) b.classList.add("selected");
+      if (cy === today.y && i === today.m) b.classList.add("today");
+      b.textContent = m;
+      b.onclick = () => { cm = i; renderMonths(); };
+      grid.appendChild(b);
+    });
+  }
+
+  function renderYears() {
+    document.getElementById("bigYear").textContent = cy;
+    const grid = document.getElementById("yearGrid");
+    grid.innerHTML = "";
+    for (let y = cy + 12; y >= cy - 12; y--) {
+      const b = document.createElement("button");
+      b.className = "month-cell";
+      b.style.width = "80px";
+      if (y === cy) b.classList.add("selected");
+      b.textContent = y;
+      b.onclick = () => { cy = y; renderYears(); };
+      grid.appendChild(b);
+    }
+  }
+
+  function shiftYear(d) { cy += d; renderMonths(); renderYears(); }
+  function setMode(m) {
+    document.getElementById("segMonth").className = m === "month" ? "on" : "";
+    document.getElementById("segYear").className = m === "year" ? "on" : "";
+    document.getElementById("monthMode").style.display = m === "month" ? "" : "none";
+    document.getElementById("yearMode").style.display = m === "year" ? "" : "none";
+  }
+  function openPicker() {
+    document.getElementById("pickerScreen").classList.add("show");
+    document.getElementById("demoScreen").style.opacity = "0";
+  }
+  function closePicker() {
+    document.getElementById("pickerScreen").classList.remove("show");
+    document.getElementById("demoScreen").style.opacity = "";
+    document.getElementById("homeLabel").textContent = title();
+    setMode("month");
+  }
+
+  renderMonths(); renderYears();
+</script>
+</body>
+</html>

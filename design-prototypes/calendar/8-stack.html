@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>8 — Push stack ปี→เดือน→วัน (ถอยทีละสเตป)</title>
+<style>
+  :root {
+    --bg:#fafafa; --surface:#fff; --surface-2:#f5f5f5; --border:#e5e7eb;
+    --text:#1a1a1a; --muted:#6b7280; --focus:#3b82f6; --income:#16a34a; --expense:#dc2626; --radius:16px; --safe:env(safe-area-inset-bottom);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"IBM Plex Sans Thai",sans-serif; background:var(--bg); color:var(--text); max-width:390px; margin:0 auto; height:100dvh; overflow:hidden; position:relative; }
+
+  /* ─── stack ของหน้าจอ ─── */
+  .scr { position:absolute; inset:0; background:var(--bg); display:flex; flex-direction:column; transform:translateX(100%); transition:transform .32s cubic-bezier(.32,.72,0,1); z-index:2; }
+  .scr.show { transform:translateX(0); }
+  .scr.on-deck { z-index:1; }
+  .scr.home { transform:translateX(0); z-index:0; }
+  .scr.behind { z-index:0; }
+
+  .head { display:flex; align-items:center; padding:10px 8px; background:var(--surface); border-bottom:1px solid var(--border); }
+  .back { width:40px; height:40px; border:none; background:none; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .back:active{opacity:.5;}
+  .head-title { flex:1; font-size:16px; font-weight:700; text-align:center; margin-right:40px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .body { flex:1; overflow-y:auto; padding:14px; }
+
+  /* ─── ปี ─── */
+  .year-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .ycell { border:1.5px solid var(--border); background:var(--surface); border-radius:14px; padding:16px 6px 12px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; transition:all .15s; }
+  .ycell:hover { border-color:var(--focus); }
+  .ycell.current { border-color:var(--focus); background:#eff6ff; }
+  .ycell.today-mod { box-shadow:0 0 0 2px #fbbf24 inset; }
+  .ycell .ym { font-size:13px; font-weight:700; }
+  .ycell .yv { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .ycell .yv.e{color:var(--expense);} .ycell .yv.i{color:var(--income);} .ycell .yv.z{color:#d1d5db;}
+  .ycd { font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* ─── เดือน ─── */
+  .cal-sum { display:flex; gap:6px; margin-bottom:12px; }
+  .cal-s { flex:1; border-radius:12px; padding:8px 10px; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+  .cal-s .k { font-size:10px; color:var(--muted); }
+  .cal-s .v { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .v.inc{color:var(--income);} .v.exp{color:var(--expense);} .v.bal{color:var(--focus);}
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .pabtn { width:32px; height:32px; border-radius:10px; border:none; background:var(--surface); box-shadow:0 1px 2px rgba(0,0,0,0.06); font-size:15px; cursor:pointer; }
+  .cal-nav .t { font-size:14px; font-weight:700; }
+  .dow-row { display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:2px; }
+  .dow { font-size:10px; color:var(--muted); text-align:center; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cell { border:none; border-radius:10px; background:none; cursor:pointer; padding:4px 1px; min-height:44px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .cell.today { background:#eff6ff; }
+  .cell .dn { font-size:12px; font-weight:600; }
+  .cell .vn { font-size:8.5px; font-weight:700; }
+  .cell .vn.e{color:var(--expense);} .cell .vn.i{color:var(--income);}
+  .cell.empty { cursor:default; }
+
+  /* ─── วัน ─── */
+  .d-sum { display:flex; gap:8px; margin-bottom:12px; }
+  .d-sum .c { flex:1; background:var(--surface); border-radius:14px; padding:12px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+  .d-sum .c .k { font-size:11px; color:var(--muted); }
+  .d-sum .c .v { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .tx-item { display:flex; align-items:center; gap:12px; background:var(--surface); border-radius:14px; padding:12px 14px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+  .dot { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .dot.e{background:#fee2e2;} .dot.i{background:#dcfce7;}
+  .tx-item .mid{flex:1;} .tx-item .cat{font-size:13px;font-weight:600;} .tx-item .note{font-size:11px;color:var(--muted);}
+  .tx-item .amt{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;}
+  .tx-item .amt.e{color:var(--expense);} .tx-item .amt.i{color:var(--income);}
+  .crumb { font-size:11px; color:var(--muted); padding:2px 12px 8px; display:flex; gap:6px; align-items:center; }
+  .crumb b{ color:var(--text);}
+
+  .hint { position:absolute; bottom:calc(14px + 8px); left:50%; transform:translateX(-50%); width:min(320px,calc(100vw - 32px)); background:#1f2937; color:#fff; font-size:12px; padding:11px 14px; border-radius:12px; z-index:50; text-align:center; opacity:0; transition:opacity .3s; pointer-events:none; line-height:1.5; }
+  .hint.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- หน้าแรก (จุดเริ่มต้น) -->
+<div class="scr home" id="scrHome">
+  <div class="head"><span class="head-title">หน้าแรก</span></div>
+  <div class="body">
+    <div class="card" style="background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;margin-bottom:6px">ตัวอย่าง</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6">แตะ <b>"กันยายน 2569"</b> ที่แถวบนสุดเพื่อเจาะลงไป — หน้านี้เป็นเพียงจุดตั้งต้นให้เห็นการ stack ของหน้าจอ</p>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <button style="width:40px;height:40px;border-radius:50%;border:none;background:var(--surface-2);font-size:20px">‹</button>
+      <button id="homeMonthBtn" style="border:none;background:none;font-weight:700;font-size:15px">กันยายน 2569 ∪</button>
+      <button style="width:40px;height:40px;border-radius:50%;border:none;background:var(--surface-2);font-size:20px">›</button>
+    </div>
+  </div>
+</div>
+
+<!-- หน้าเดือน -->
+<div class="scr" id="scrMonth">
+  <div class="head">
+    <button class="back" onclick="pop()">‹</button>
+    <span class="head-title" id="mTitle">กันยายน 2569</span>
+  </div>
+  <div class="body">
+    <div class="crumb">ครั้งนี้: <b>เดือน</b> → ถอยกลับเป็น <b>ปี</b></div>
+    <div class="cal-nav">
+      <button class="pabtn" onclick="mm(-1)">‹</button>
+      <button class="t" id="mHeadLabel" onclick="pushYear()">กันยายน 2569 ▾</button>
+      <button class="pabtn" onclick="mm(1)">›</button>
+    </div>
+    <div class="cal-sum">
+      <div class="cal-s"><div class="k">รายรับ</div><div class="v inc" id="mInc">฿23,500</div></div>
+      <div class="cal-s"><div class="k">รายจ่าย</div><div class="v exp" id="mExp">฿17,655</div></div>
+      <div class="cal-s"><div class="k">คงเหลือ</div><div class="v bal" id="mBal">฿+5,845</div></div>
+    </div>
+    <div class="dow-row" id="mDow"></div>
+    <div class="grid" id="mGrid"></div>
+  </div>
+</div>
+
+<!-- หน้าปี -->
+<div class="scr" id="scrYear">
+  <div class="head">
+    <button class="back" onclick="pop()">‹</button>
+    <span class="head-title" id="yTitle">พ.ศ. 2569</span>
+  </div>
+  <div class="body">
+    <div class="crumb">ครั้งนี้: <b>ปี</b> → ถอยกลับเป็น <b>หน้าหลัก</b></div>
+    <div class="cal-nav">
+      <button class="pabtn" onclick="yy(-1)">‹</button>
+      <span class="t" id="yLabel">2569</span>
+      <button class="pabtn" onclick="yy(1)">›</button>
+    </div>
+    <div class="year-grid" id="yGrid"></div>
+  </div>
+</div>
+
+<!-- หน้ารายการวัน -->
+<div class="scr" id="scrDay">
+  <div class="head">
+    <button class="back" onclick="pop()">‹</button>
+    <span class="head-title" id="dTitle">วันนี้</span>
+  </div>
+  <div class="body">
+    <div class="crumb">ครั้งนี้: <b>วัน</b> → ถอยกลับเป็น <b>เดือน</b></div>
+    <div class="d-sum">
+      <div class="c"><div class="k">รายรับ</div><div class="v inc" id="dInc">฿0</div></div>
+      <div class="c"><div class="k">รายจ่าย</div><div class="v exp" id="dExp">฿0</div></div>
+      <div class="c"><div class="k">ยอด</div><div class="v bal" id="dBal">฿0</div></div>
+    </div>
+    <div id="dList"></div>
+  </div>
+</div>
+
+<div class="hint" id="hint"></div>
+
+<script>
+  const MONTHS=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const DOW=["อา","จ","อ","พ","พฤ","ศ","ส"];
+  const BT={อาหาร:"🍜",เดินทาง:"🚗",บ้าน:"🏠",ช้อปปิ้ง:"🛍️",บันเทิง:"🎬",รายได้:"💵"};
+  const BE=543;
+  const SEPT={1:{cat:"อาหาร",ex:320},2:{cat:"รายได้",in:15000,tx:"เงินเดือน"},{cat:"ช้อปปิ้ง",ex:1200},{cat:"ช้อปปิ้ง",ex:1200}};
+  // เก็บรายการรายวันของ ก.ย. ตรงๆ
+  const DAYS={
+    1:[{cat:"อาหาร",note:"ข้าวกลางวัน",ex:320}],
+    2:[{cat:"รายได้",note:"เงินเดือน",in:15000},{cat:"ช้อปปิ้ง",note:"เสื้อผ้า",ex:1200}],
+    3:[{cat:"เดินทาง",note:"ค่ารถ",ex:850}],
+    5:[{cat:"อาหาร",note:"ข้าวเย็น",ex:240}],
+    7:[{cat:"บ้าน",note:"ค่าน้ำ",ex:980}],
+    8:[{cat:"บ้าน",note:"ค่าเช่า",ex:4500}],
+    10:[{cat:"อาหาร",note:"ของกินเล่น",ex:120}],
+    12:[{cat:"ช้อปปิ้ง",note:"ของใช้ในบ้าน",ex:1890}],
+    15:[{cat:"เดินทาง",note:"น้ำมัน",ex:640}],
+    17:[{cat:"รายได้",note:"คืนเพื่อน",in:500},{cat:"อาหาร",note:"กาแฟ",ex:95}],
+    20:[{cat:"เดินทาง",note:"ค่าน้ำมัน",ex:3200}],
+    23:[{cat:"อาหาร",note:"ซื้อของชำ",ex:760}],
+    25:[{cat:"รายได้",note:"ฟรีแลนซ์",in:8000},{cat:"บันเทิง",note:"ค่าสตรีมมิ่ง",ex:1540}],
+    28:[{cat:"บ้าน",note:"ค่าเน็ต",ex:2300}]
+  };
+  function rng(seed){let a=seed>>>0;return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+  function dim(y,m){return[31,2026%4===0?29:28,31,30,31,30,31,31,30,31,30,31][m];}
+  function short(n){return n>=1000?(n/1000)%1===0?Math.round(n/1000)+"K":(n/1000).toFixed(1)+"K":String(n);}
+  const baht=n=>"฿"+n.toLocaleString("th-TH");
+  function msm(y,m){let i=0,e=0;const map=(y===2026&&m===8)?DAYS:{};for(const k in map)map[k].forEach(t=>{i+=t.in||0;e+=t.ex||0;});if((y===2026&&m!==8)||y!==2026){const r=rng(y*12+m+5);i=r()>0.4?Math.round((3000+r()*20000)/100)*100:Math.round(r()*4000/100)*100;e=Math.round((2000+r()*18000)/100)*100;}return{inc:i,exp:e};}
+
+  let stack=[]
+
+  function pushYear(){ push("scrYear"); }
+  document.getElementById("homeMonthBtn").onclick=()=>push("scrMonth");
+  function push(id){
+    // ปูข้อมูลปัจจุบันของหน้าจอนั้นก่อนสไลด์เข้า
+    if(id==="scrMonth"){ setMonthScreen(); }
+    if(id==="scrYear"){ setYearScreen(); }
+    stack.push(id);
+    // หน้าจอที่ถูกผลัก
+    stack.slice(0,-1).forEach(s=>{const el=document.getElementById(s);el.classList.remove("show","behind");el.classList.add("on-deck");});
+    document.getElementById(id).classList.add("show");
+  }
+  function pop(){
+    const out=stack.pop();
+    document.getElementById(out).classList.remove("show");
+    // หน้าสุดท้ายที่เหลือมาอยู่หน้า
+    if(stack.length){
+      document.getElementById(stack[stack.length-1]).classList.remove("on-deck","behind");
+    }
+  }
+  function showHint(msg){const h=document.getElementById("hint");h.textContent=msg;h.classList.add("show");setTimeout(()=>h.classList.remove("show"),2600);}
+
+  // ─── หน้าเดือน ───
+  let cm={y:2026,m:8};
+  function setMonthScreen(){
+    document.getElementById("mTitle").textContent=MONTHS[cm.m]+" "+ (cm.y+BE);
+    document.getElementById("mHeadLabel").textContent=MONTHS[cm.m]+" "+ (cm.y+BE)+" ▾";
+    const s=msm(cm.y,cm.m);
+    document.getElementById("mInc").textContent=baht(s.inc);
+    document.getElementById("mExp").textContent=baht(s.exp);
+    document.getElementById("mBal").textContent=(s.inc-s.exp>=0?"+":"-")+baht(Math.abs(s.inc-s.exp));
+    document.getElementById("mDow").innerHTML=DOW.map(d=>`<div class="dow">${d}</div>`).join("");
+    const g=document.getElementById("mGrid");g.innerHTML="";
+    const first=new Date(cm.y,cm.m,1).getDay(), total=dim(cm.y,cm.m);
+    const map=(cm.y===2026&&cm.m===8)?DAYS:{};
+    for(let i=0;i<first;i++)g.appendChild(Object.assign(document.createElement("div"),{className:"cell empty"}));
+    for(let d=1;d<=total;d++){
+      const ts=map[d],b=document.createElement("button");
+      b.className="cell"+(d===17&&cm.y===2026&&cm.m===8?" today":"");
+      const dn=document.createElement("span");dn.className="dn";dn.textContent=d;b.appendChild(dn);
+      let i=0,e=0;if(ts)ts.forEach(t=>{i+=t.in||0;e+=t.ex||0;});
+      if(i){const v=document.createElement("span");v.className="vn i";v.textContent="+"+short(i);b.appendChild(v);}
+      if(e){const v=document.createElement("span");v.className="vn e";v.textContent="-"+short(e);b.appendChild(v);}
+      b.onclick=()=>pushDay(d);
+      g.appendChild(b);
+    }
+  }
+  function mm(d){cm.y=(cm.m+d>11?cm.y+1:cm.y);cm.m=(cm.m+d+12)%12;setMonthScreen();}
+  function pushDay(d){ setDayScreen(d); push("scrDay"); }
+
+  // ─── หน้า ปี ───
+  let cy=2026;
+  function setYearScreen(){
+    document.getElementById("yTitle").textContent="พ.ศ. "+(cy+BE);
+    document.getElementById("yLabel").textContent=cy+BE;
+    const g=document.getElementById("yGrid");g.innerHTML="";
+    for(let m=0;m<12;m++){
+      const t=msm(cy,m),b=document.createElement("button");
+      b.className="ycell"+(cy===cm.y&&m===cm.m?" current":"")+(cy===2026&&m===8?" today-mod":"");
+      const nm=document.createElement("span");nm.className="ym";nm.textContent=MONTHS[m].slice(0,3)+".";b.appendChild(nm);
+      const ve=document.createElement("span");ve.className="yv "+(t.exp>0?"e":"z");ve.textContent=t.exp>0?"-"+short(t.exp):"—";b.appendChild(ve);
+      const vi=document.createElement("span");vi.className="yv "+(t.inc>0?"i":"z");vi.textContent=t.inc>0?"+"+short(t.inc):"";b.appendChild(vi);
+      const cd=document.createElement("div");cd.className="ycd";cd.textContent=m===8?"← กำลังดู";b.appendChild(cd);
+      b.onclick=()=>{cy=2026;cm={y:2026,m};push("scrMonth");stack=stack.filter(s=>s!=="scrYear");pop();setMonthScreen();};
+      g.appendChild(b);
+    }
+  }
+  function yy(d){cy+=d;setYearScreen();}
+
+  // ─── หน้า วัน ───
+  function setDayScreen(d){
+    const day=(cm.y===2026&&cm.m===8)?(DAYS[d]||[]):[];
+    document.getElementById("dTitle").textContent=`${d} ${MONTHS[cm.m]} ${cm.y+BE}`;
+    let i=0,e=0;day.forEach(t=>{i+=t.in||0;e+=t.ex||0;});
+    document.getElementById("dInc").textContent=baht(i);
+    document.getElementById("dExp").textContent=baht(e);
+    document.getElementById("dBal").textContent=(i-e>=0?"+":"-")+baht(Math.abs(i-e));
+    document.getElementById("dList").innerHTML=day.map(t=>{
+      const isInc=(t.in||0)>0,amt=isInc?t.in:t.ex;
+      return `<div class="tx-item"><div class="dot ${isInc?"i":"e"}">${BT[t.cat]||"•"}</div>
+        <div class="mid"><div class="cat">${t.cat}</div><div class="note">${t.note}</div></div>
+        <div class="amt ${isInc?"i":"e"}">${isInc?"+":"-"}${baht(amt)}</div></div>`;
+    }).join("");
+  }
+
+  showHint("แบบที่ 8: กด ‹ หน้าละครั้ง = ถอยทีละ 1 step (วัน→เดือน→ปี→หน้าแรก)");
+</script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>7 — iOS Zoom ซูมเดือน↔ปี (ไม่มี tab)</title>
+<style>
+  :root {
+    --bg:#fafafa; --surface:#fff; --surface-2:#f5f5f5; --border:#e5e7eb;
+    --text:#1a1a1a; --muted:#6b7280; --focus:#3b82f6; --income:#16a34a; --expense:#dc2626; --radius:16px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"IBM Plex Sans Thai",sans-serif; background:var(--bg); color:var(--text); max-width:390px; margin:0 auto; padding:16px; }
+  .nav-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .nav-btn { width:40px; height:40px; border-radius:50%; border:none; background:var(--surface); font-size:20px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+  .card { background:var(--surface); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+  .label { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; font-weight:600; }
+  .card p { font-size:13px; color:var(--muted); line-height:1.6; }
+  .card p b { color:var(--text); }
+
+  .cal { background:var(--surface); border-radius:var(--radius); box-shadow:0 1px 3px rgba(0,0,0,0.06); padding:14px; margin-bottom:12px; overflow:hidden; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .arrows { display:flex; gap:8px; }
+  .pabtn { width:32px; height:32px; border-radius:10px; border:none; background:var(--surface-2); font-size:15px; cursor:pointer; }
+  /* ปุ่มกลาง: แตะ = ซูมออก/เข้า */
+  .zoom-btn { border:none; background:var(--surface-2); font-weight:700; font-size:15px; padding:8px 16px; border-radius:12px; cursor:pointer; min-width:130px; transition:all .3s; }
+  .zoom-btn:active { opacity:.7; }
+  .zoom-btn small { display:block; font-size:10px; font-weight:500; color:var(--muted); }
+
+  .cal-sum { display:flex; gap:6px; margin-bottom:12px; }
+  .cal-s { flex:1; border-radius:12px; padding:8px 10px; background:var(--surface-2); }
+  .cal-s .k { font-size:10px; color:var(--muted); }
+  .cal-s .v { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .v.inc{color:var(--income);} .v.exp{color:var(--expense);} .v.bal{color:var(--focus);}
+
+  /* ── zoom ระหว่าง 2 มุมมอง ── */
+  .stage { position:relative; }
+  .view { transition: opacity .3s, transform .35s cubic-bezier(.32,.72,0,1); }
+  .view.m { opacity:1; transform:scale(1); }
+  .view.y { position:absolute; inset:0; opacity:0; transform:scale(.75) translateY(14px); pointer-events:none; }
+  .stage.zoom .view.m { opacity:0; transform:scale(1.25) translateY(-10px); pointer-events:none; }
+  .stage.zoom .view.y { position:static; opacity:1; transform:scale(1); pointer-events:auto; }
+
+  .dow-row { display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:2px; }
+  .dow { font-size:10px; color:var(--muted); text-align:center; padding:2px; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cell { border:none; border-radius:10px; background:none; cursor:pointer; padding:4px 1px; min-height:46px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .cell.today { background:#eff6ff; }
+  .cell .dn { font-size:12px; font-weight:600; color:var(--text); }
+  .cell .vn { font-size:9px; font-weight:700; }
+  .cell .vn.e { color:var(--expense); } .cell .vn.i{ color:var(--income); }
+  .cell.empty { cursor:default; }
+  .cell:active { background:var(--surface-2); }
+
+  .year-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding-top:4px; }
+  .ycell { border:1.5px solid var(--border); background:var(--surface); border-radius:12px; padding:10px 4px 8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; transition:all .15s; }
+  .ycell:hover { border-color:var(--focus); }
+  .ycell.current { border-color:var(--focus); background:#eff6ff; }
+  .ycell.today-mod { box-shadow:0 0 0 2px #fbbf24 inset; }
+  .ycell .ym { font-size:12px; font-weight:700; }
+  .ycell .yv { font-size:10px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .ycell .yv.e { color:var(--expense); } .ycell .yv.i{ color:var(--income); } .ycell .yv.z{ color:#d1d5db; }
+</style>
+</head>
+<body>
+
+<div class="nav-row">
+  <button class="nav-btn">‹</button>
+  <span id="homeLabel" style="font-weight:700">กันยายน 2569</span>
+  <button class="nav-btn">›</button>
+</div>
+
+<div class="card">
+  <div class="label">วิธีใช้ (แบบที่ 7)</div>
+  <p>ปุ่มกลางแสดงชื่อเดือนที่กำลังดู — <b>แตะมัน แล้วทั้งกล่องจะ "บีบ" ซูมออกกลายเป็นปี</b> (ไม่มี tab) แตะเดือนในปี = ซูมกลับเข้าเดือนนั้น ปุ่มกลางบอกสถานะเสมอ:</p>
+</div>
+
+<div class="cal">
+  <div class="cal-nav">
+    <div class="arrows"><button class="pabtn" onclick="pm(-1)">‹</button></div>
+    <button class="zoom-btn" id="zoomBtn" onclick="toggleZoom()">
+      <span id="zoomTitle">กันยายน</span>
+      <small id="zoomSub">2569 · แตะเพื่อดูทั้งปี</small>
+    </button>
+    <div class="arrows"><button class="pabtn" onclick="pm(1)">›</button></div>
+  </div>
+  <div class="cal-sum">
+    <div class="cal-s"><div class="k">รายรับ</div><div class="v inc" id="sInc">฿23,500</div></div>
+    <div class="cal-s"><div class="k">รายจ่าย</div><div class="v exp" id="sExp">฿17,655</div></div>
+    <div class="cal-s"><div class="k">คงเหลือ</div><div class="v bal" id="sBal">฿+5,845</div></div>
+  </div>
+  <div class="stage" id="stage">
+    <!-- มุมมองเดือน -->
+    <div class="view m" id="mView">
+      <div class="dow-row"></div>
+      <div class="grid" id="mGrid"></div>
+    </div>
+    <!-- มุมมองปี -->
+    <div class="view y" id="yView">
+      <div class="year-grid" id="yGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="label">เมื่อกดเดือนในมุมมองปี</div>
+  <p>ซูมกลับเข้าเดือนนั้นทันที ระดับของ "การเจาะ" เก็บจากปุ่มกลางตัวเดียว จำง่าย ไม่ต้องหาว่าต้องกด tab ไหน</p>
+</div>
+
+<script>
+  const MONTHS=["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const DOW=["อา","จ","อ","พ","พฤ","ศ","ส"];
+  const BE=543;
+  const SEPT={1:[{exp:320}],2:[{inc:15000},{exp:1200}],3:[{exp:850}],5:[{exp:240}],7:[{exp:980}],8:[{exp:4500}],10:[{exp:120}],12:[{exp:1890}],15:[{exp:640}],17:[{inc:500},{exp:95}],20:[{exp:3200}],23:[{exp:760}],25:[{inc:8000},{exp:1540}],28:[{exp:2300}]};
+  function rng(seed){let a=seed>>>0;return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+  function dim(y,m){return[31,2026%4===0?29:28,31,30,31,30,31,31,30,31,30,31][m];}
+  function short(n){return n>=1000?(n/1000)%1===0?Math.round(n/1000)+"K":(n/1000).toFixed(1)+"K":String(n);}
+  const baht=n=>"฿"+n.toLocaleString("th-TH");
+  function daySum(map){let i=0,e=0;for(const k in map)map[k].forEach(t=>{i+=t.inc||0;e+=t.exp||0;});return{inc:i,exp:e};}
+  function monthTotals(y,m){if(y===2026&&m===8)return daySum(SEPT);const r=rng(y*12+m+17);return{inc:r()>0.45?Math.round((5000+r()*25000)/100)*100:Math.round(r()*6000/100)*100,exp:Math.round((3000+r()*22000)/100)*100};}
+
+  let cal={y:2026,m:8}; let zoom=false; const today={y:2026,m:8,d:17};
+
+  function render(x){
+    const title=MONTHS[cal.m];
+    document.getElementById("zoomTitle").textContent = zoom ? cal.y+BE : title;
+    document.getElementById("zoomSub").textContent = zoom ? "แตะเพื่อดูเดือนเดียว" : (cal.y+BE)+" · แตะเพื่อดูทั้งปี";
+    const s = zoom ? (()=>{let i=0,e=0;for(let m=0;m<12;m++){const t=monthTotals(cal.y,m);i+=t.inc;e+=t.exp;}return{inc:i,exp:e};})() : monthTotals(cal.y,cal.m);
+    document.getElementById("sInc").textContent=baht(s.inc);
+    document.getElementById("sExp").textContent=baht(s.exp);
+    document.getElementById("sBal").textContent=(s.inc-s.exp>=0?"+":"-")+baht(Math.abs(s.inc-s.exp));
+    if (zoom) renderY(); else renderM();
+  }
+
+  function renderM(){
+    document.querySelector("#mView .dow-row").innerHTML=DOW.map(d=>`<div class="dow">${d}</div>`).join("");
+    const g=document.getElementById("mGrid"); g.innerHTML="";
+    const first=new Date(cal.y,cal.m,1).getDay(), total=dim(cal.y,cal.m);
+    const map=(cal.y===2026&&cal.m===8)?SEPT:{};
+    for(let i=0;i<first;i++){const e=document.createElement("div");e.className="cell empty";g.appendChild(e);}
+    for(let d=1;d<=total;d++){
+      const ts=map[d], b=document.createElement("button");
+      if(today.y===cal.y&&today.m===cal.m&&today.d===d)b.className="cell today";
+      else b.className="cell";
+      const dn=document.createElement("span");dn.className="dn";dn.textContent=d;b.appendChild(dn);
+      let i=0,e=0;if(ts)ts.forEach(t=>{i+=t.inc||0;e+=t.exp||0;});
+      if(i){const v=document.createElement("span");v.className="vn i";v.textContent="+"+short(i);b.appendChild(v);}
+      if(e){const v=document.createElement("span");v.className="vn e";v.textContent="-"+short(e);b.appendChild(v);}
+      g.appendChild(b);
+    }
+  }
+
+  function renderY(){
+    const g=document.getElementById("yGrid"); g.innerHTML="";
+    for(let m=0;m<12;m++){
+      const t=monthTotals(cal.y,m), b=document.createElement("button");
+      b.className="ycell"+(cal.m===m?" current":"")+(today.y===cal.y&&today.m===m?" today-mod":"");
+      const nm=document.createElement("span");nm.className="ym";nm.textContent=MONTHS[m].slice(0,3)+".";b.appendChild(nm);
+      const ve=document.createElement("span");ve.className="yv "+(t.exp>0?"e":"z");ve.textContent=t.exp>0?"-"+short(t.exp):"—";b.appendChild(ve);
+      const vi=document.createElement("span");vi.className="yv "+(t.inc>0?"i":"z");vi.textContent=t.inc>0?"+"+short(t.inc):"";b.appendChild(vi);
+      b.onclick=()=>{cal.m=m;toggleZoom();};
+      g.appendChild(b);
+    }
+  }
+
+  function toggleZoom(){ zoom=!zoom; document.getElementById("stage").classList.toggle("zoom",zoom); render(); }
+  function pm(d){ if(zoom) cal.y+=d; else { cal.y=(cal.m+d>11?cal.y+1:cal.y); cal.m=(cal.m+d+12)%12; } render(); }
+
+  render();
+</script>
+</body>
+</html>

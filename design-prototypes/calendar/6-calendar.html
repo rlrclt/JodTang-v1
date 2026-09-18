@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>6 — ปฏิทินเต็มเดือน Drill-down</title>
+<style>
+  :root {
+    --bg: #fafafa; --surface: #ffffff; --surface-2: #f5f5f5;
+    --border: #e5e7eb; --text: #1a1a1a; --muted: #6b7280;
+    --focus: #3b82f6; --income: #16a34a; --expense: #dc2626;
+    --radius: 16px; --safe: env(safe-area-inset-bottom);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "IBM Plex Sans Thai", sans-serif; background: var(--bg); color: var(--text); max-width: 390px; margin: 0 auto; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ─── หน้าแรก ─── */
+  .home { flex: 1; padding: 16px; overflow-y: auto; }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .nav-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--surface); font-size: 20px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .nav-btn:active { background: var(--surface-2); }
+  .month-btn { border: none; background: none; cursor: pointer; padding: 4px 12px; border-radius: 10px; color: var(--text); display: flex; align-items: center; gap: 4px; }
+  .month-btn:active { background: var(--surface-2); }
+  .chev { font-size: 10px; color: var(--muted); transform: rotate(90deg); transition: transform 0.25s; }
+  .chev.up { transform: rotate(270deg); }
+
+  .card { background: var(--surface); border-radius: var(--radius); padding: 20px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .card p b { color: var(--text); }
+
+  /* ─── ปฏิทิน (inline ในหน้าแรก) ─── */
+  .cal-wrap { overflow: hidden; transition: max-height 0.3s cubic-bezier(0.32,0.72,0,1), opacity 0.25s; opacity: 0; max-height: 0; }
+  .cal-wrap.show { opacity: 1; max-height: 480px; }
+  .cal { background: var(--surface); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.06); padding: 14px; margin-bottom: 12px; }
+
+  .cal-sum { display: flex; gap: 6px; margin-bottom: 12px; }
+  .cal-s { flex: 1; border-radius: 12px; padding: 8px 10px; background: var(--surface-2); }
+  .cal-s .k { font-size: 10px; color: var(--muted); }
+  .cal-s .v { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .v.inc{ color: var(--income);} .v.exp{ color: var(--expense);} .v.bal{ color: var(--focus);}
+
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .cal-nav .t { font-size: 15px; font-weight: 700; cursor: pointer; min-width: 100px; text-align: center; border-radius: 8px; padding: 4px 8px; }
+  .cal-nav .t:hover { background: var(--surface-2); }
+  .cal-nav .arrows { display: flex; gap: 8px; }
+  .pabtn { width: 32px; height: 32px; border-radius: 10px; border: none; background: var(--surface-2); font-size: 15px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .pabtn:active { background: var(--border); }
+
+  /* สวิตช์ เดือน / ทั้งปี */
+  .cal-switch { display: flex; background: var(--surface-2); border-radius: 10px; padding: 2px; margin-bottom: 10px; }
+  .cal-switch button { flex: 1; border: none; background: none; color: var(--muted); font-size: 12px; font-weight: 600; padding: 7px 0; border-radius: 8px; cursor: pointer; }
+  .cal-switch button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+  .cal-switch button:active { opacity: 0.8; }
+
+  .dow-row { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 4px; }
+  .dow { font-size: 10px; color: var(--muted); text-align: center; font-weight: 600; padding: 2px; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+  .cell { border: none; border-radius: 10px; background: none; cursor: pointer; padding: 5px 2px 4px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 1px; position: relative; transition: background 0.15s; }
+  .cell:hover { background: var(--surface-2); }
+  .cell .dn { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.2; }
+  .cell .dn.gray { color: #d1d5db; }
+  .cell .dn.today { color: var(--focus); font-weight: 800; }
+  .cell.today::after { content:""; position:absolute; top:4px; right:5px; width:5px; height:5px; border-radius:50%; background: var(--focus); }
+  .cell .vn { font-size: 9px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .cell .vn.e { color: var(--expense); }
+  .cell .vn.i { color: var(--income); }
+  .cell.empty { cursor: default; }
+  .cell.empty:hover { background: none; }
+
+  /* ─── มุมมองทั้งปี (ซูมออก 1 step) ─── */
+  .year-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px; }
+  .ycell { border: 1.5px solid var(--border); background: var(--surface); border-radius: 12px; padding: 10px 4px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all 0.15s; }
+  .ycell:hover { border-color: var(--focus); }
+  .ycell.current { border-color: var(--focus); background: #eff6ff; }
+  .ycell.today-mod { box-shadow: 0 0 0 2px #fbbf24 inset; }
+  .ycell .ym { font-size: 12px; font-weight: 700; }
+  .ycell .yv { font-size: 10px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .ycell .yv.e { color: var(--expense); }
+  .ycell .yv.i { color: var(--income); }
+  .ycell .yv.z { color: #d1d5db; }
+
+  .mode-hint { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+
+  .week-hl { background: #fef9c3; } /* แถววันนี้ (mock) */
+
+  /* ─── หน้ารายการของวัน (slide) ─── */
+  .txns { position: fixed; inset: 0; z-index: 90; background: var(--bg); display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); }
+  .txns.show { transform: translateX(0); }
+  .tx-head { display: flex; align-items: center; gap: 8px; padding: 12px 8px 12px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tx-back { width: 40px; height: 40px; border: none; background: none; font-size: 22px; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tx-title { flex: 1; }
+  .tx-title .d { font-size: 16px; font-weight: 700; }
+  .tx-title .s { font-size: 11px; color: var(--focus); }
+  .tx-pill { font-size: 11px; font-weight: 600; color: var(--focus); background: #eff6ff; padding: 4px 10px; border-radius: 99px; white-space: nowrap; margin-right: 6px; }
+  .tx-main { flex: 1; overflow-y: auto; padding: 12px; }
+  .tx-sum { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tx-sum .c { flex: 1; background: var(--surface); border-radius: 14px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .tx-sum .c .k { font-size: 11px; color: var(--muted); }
+  .tx-sum .c .v { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tx-sum .c .v.inc{ color: var(--income);} .tx-sum .c .v.exp{ color: var(--expense);} .tx-sum .c .v.bal{ color: var(--focus);}
+  .tx-item { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .dot { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .dot.e { background: #fee2e2; } .dot.i { background: #dcfce7; }
+  .tx-item .mid { flex: 1; }
+  .tx-item .cat { font-size: 13px; font-weight: 600; }
+  .tx-item .note { font-size: 11px; color: var(--muted); }
+  .tx-item .amt { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tx-item .amt.e { color: var(--expense); } .tx-item .amt.i { color: var(--income); }
+</style>
+</head>
+<body>
+
+<!-- หน้าแรก -->
+<div class="home">
+  <div class="nav-row">
+    <button class="nav-btn">‹</button>
+    <button class="month-btn" id="monthToggle">
+      <span id="monthLabel">กันยายน 2569</span>
+      <span class="chev" id="chev">▼</span>
+    </button>
+    <button class="nav-btn">›</button>
+  </div>
+
+  <div class="card">
+    <div class="label">ตัวอย่างหน้าแรก</div>
+    <p>แตะชื่อเดือน → <b>ปฏิทินเต็มเดือน</b> แต่ละช่องวันมีรายรับ/รายจ่ายกำกับ แตะวันไหน → หน้ารายการของวันนั้น เลือก <b>"ทั้งปี"</b> (หรือแตะชื่อเดือนอีกที) → ซูมออกเห็น 12 เดือน ยอดทั้งเดือนตรงช่อง แล้วแตะเดือนเจาะกลับเข้าไป</p>
+  </div>
+
+  <!-- ปฏิทิน -->
+  <div class="cal-wrap" id="calWrap">
+    <div class="cal">
+      <div class="cal-sum">
+        <div class="cal-s"><div class="k">รายรับ</div><div class="v inc" id="sInc">฿23,500</div></div>
+        <div class="cal-s"><div class="k">รายจ่าย</div><div class="v exp" id="sExp">฿16,240</div></div>
+        <div class="cal-s"><div class="k">คงเหลือ</div><div class="v bal" id="sBal">฿+7,260</div></div>
+      </div>
+
+      <div class="cal-switch">
+        <button id="swMonth" class="on" onclick="setMode('month')">เดือน</button>
+        <button id="swYear" onclick="setMode('year')">ทั้งปี</button>
+      </div>
+
+      <div class="cal-nav">
+        <div class="arrows"><button class="pabtn" onclick="cm(-1)">‹</button></div>
+        <span class="t" id="calMonth" onclick="toggleMode()" title="สลับดูเดือน/ทั้งปี">กันยายน 2569</span>
+        <div class="arrows"><button class="pabtn" onclick="cm(1)">›</button></div>
+      </div>
+
+      <!-- มุมมองเดือน -->
+      <div id="monthView">
+        <div class="dow-row" id="dowRow"></div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <!-- มุมมองทั้งปี -->
+      <div id="yearView" style="display:none">
+        <div class="year-grid" id="yearGrid"></div>
+        <div class="mode-hint" id="yearHint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">กดปิด/เปิดปฏิทิน</div>
+    <p>แตะชื่อเดือนอีกครั้งเพื่อยุบปฏิทินกลับ (กดแล้ว slide ขึ้น-ลงกระชับๆ)</p>
+  </div>
+</div>
+
+<!-- หน้ารายการของวัน -->
+<div class="txns" id="txns">
+  <div class="tx-head">
+    <button class="tx-back" onclick="closeDay()">‹</button>
+    <div class="tx-title">
+      <div class="d" id="dayDate">17 กันยายน 2569</div>
+      <div class="s">กรองเฉพาะรายการของวันนี้</div>
+    </div>
+    <span class="tx-pill">ฟิลเตอร์วัน</span>
+  </div>
+  <div class="tx-main">
+    <div class="tx-sum">
+      <div class="c"><div class="k">รายรับ</div><div class="v inc" id="dInc">฿0</div></div>
+      <div class="c"><div class="k">รายจ่าย</div><div class="v exp" id="dExp">฿0</div></div>
+      <div class="c"><div class="k">ยอด</div><div class="v bal" id="dBal">฿0</div></div>
+    </div>
+    <div id="dayList"></div>
+  </div>
+</div>
+
+<script>
+  const MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const DOW = ["อา","จ","อ","พ","พฤ","ศ","ส"];
+  const BT = { อาหาร:"🍜", เดินทาง:"🚗", บ้าน:"🏠", ช้อปปิ้ง:"🛍️", บันเทิง:"🎬", รายได้:"💵" };
+  const BE = 543;
+
+  // ข้อมูลตัวอย่าง ก.ย. 2569 (ยอดเดิมทุกวันตรงกับตัวเลขช่อง)
+  const SEPT = {
+    1:[{cat:"อาหาร",note:"ข้าวกลางวัน",exp:320}],
+    2:[{cat:"รายได้",note:"เงินเดือน",inc:15000},{cat:"ช้อปปิ้ง",note:"เสื้อผ้า",exp:1200}],
+    3:[{cat:"เดินทาง",note:"ค่ารถ",exp:850}],
+    5:[{cat:"อาหาร",note:"ข้าวเย็น",exp:240}],
+    7:[{cat:"บ้าน",note:"ค่าน้ำ",exp:980}],
+    8:[{cat:"บ้าน",note:"ค่าเช่า",exp:4500}],
+    10:[{cat:"อาหาร",note:"ของกินเล่น",exp:120}],
+    12:[{cat:"ช้อปปิ้ง",note:"ของใช้ในบ้าน",exp:1890}],
+    15:[{cat:"เดินทาง",note:"น้ำมัน",exp:640}],
+    17:[{cat:"รายได้",note:"ค่าขนมคืนเพื่อน",inc:500},{cat:"อาหาร",note:"กาแฟ",exp:95}],
+    20:[{cat:"เดินทาง",note:"ค่าน้ำมัน",exp:3200}],
+    23:[{cat:"อาหาร",note:"ซื้อของชำ",exp:760}],
+    25:[{cat:"รายได้",note:"ฟรีแลนซ์",inc:8000},{cat:"บันเทิง",note:"ค่าสตรีมมิ่ง",exp:1540}],
+    28:[{cat:"บ้าน",note:"ค่าเน็ต",exp:2300}]
+  };
+
+  function dim(y,m){ return [31,2026%4===0?29:28,31,30,31,30,31,31,30,31,30,31][m]; }
+  function short(n){ return n>=1000 ? (n/1000)%1===0?Math.round(n/1000)+"K":(n/1000).toFixed(1)+"K" : String(n); }
+  const baht = n => "฿"+n.toLocaleString("th-TH");
+  const title = (y,m)=> MONTHS[m] + " " + (y+BE);
+
+  // ยอดรวมรายเดือน — ก.ย. ใช้ข้อมูลจริง นอกนั้นสุ่มแบบ deterministic
+  function rng(seed){ let a=seed>>>0; return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+  const SEPT_SUM = daySum(SEPT); // ใช้จริง
+  function monthTotals(y,m){
+    if (y===2026 && m===8) return SEPT_SUM;
+    const r = rng(y*12+m+17);
+    return {
+      inc: r()>0.45 ? Math.round((5000+r()*25000)/100)*100 : Math.round(r()*6000/100)*100,
+      exp: Math.round((3000+r()*22000)/100)*100
+    };
+  }
+
+  let cal = { y:2026, m:8 };       // เดือนของปฏิทิน
+  let cur = { y:2026, m:8 };       // เดือนที่หน้าแรก
+  const today = { y:2026, m:8, d:17 };
+  let shown = false;
+  let mode = "month";              // month | year
+
+  function daySum(map){ let inc=0,exp=0; for(const k in map) map[k].forEach(t=>{inc+=t.inc||0; exp+=t.exp||0;}); return {inc,exp}; }
+
+  function setMode(m){
+    mode = m;
+    document.getElementById("swMonth").classList.toggle("on", m==="month");
+    document.getElementById("swYear").classList.toggle("on", m==="year");
+    document.getElementById("monthView").style.display = m==="month" ? "" : "none";
+    document.getElementById("yearView").style.display = m==="year" ? "" : "none";
+    render();
+  }
+  function toggleMode(){ setMode(mode==="month" ? "year" : "month"); }
+
+  function render(){
+    document.getElementById("monthLabel").textContent = title(cur.y,cur.m);
+    document.getElementById("calMonth").textContent = mode==="month" ? title(cal.y,cal.m) : (cal.y+BE);
+
+    const s = mode==="month" ? monthTotals(cal.y,cal.m) : (()=>{ let i=0,e=0; for(let m=0;m<12;m++){ const t=monthTotals(cal.y,m); i+=t.inc; e+=t.exp; } return {inc:i,exp:e}; })();
+    document.getElementById("sInc").textContent = baht(s.inc);
+    document.getElementById("sExp").textContent = baht(s.exp);
+    document.getElementById("sBal").textContent = (s.inc-s.exp>=0?"+":"-")+baht(Math.abs(s.inc-s.exp));
+
+    if (mode==="year") renderYear(); else renderMonth();
+  }
+
+  function renderMonth(){
+    document.getElementById("dowRow").innerHTML = DOW.map(d=>`<div class="dow">${d}</div>`).join("");
+    const grid = document.getElementById("calGrid");
+    grid.innerHTML = "";
+    const first = new Date(cal.y,cal.m,1).getDay();
+    const total = dim(cal.y,cal.m);
+    const map = (cal.y===2026 && cal.m===8) ? SEPT : {};
+
+    for (let i=0;i<first;i++){ const e=document.createElement("div"); e.className="cell empty"; grid.appendChild(e); }
+    for (let d=1; d<=total; d++){
+      const ts = map[d];
+      const b = document.createElement("button");
+      const isToday = today.y===cal.y && today.m===cal.m && today.d===d;
+      b.className = "cell" + (isToday?" today":"");
+      const dn = document.createElement("span");
+      dn.className = "dn" + (isToday?" today":"");
+      dn.textContent = d; b.appendChild(dn);
+      let inc=0,exp=0; if(ts){ ts.forEach(t=>{inc+=t.inc||0;exp+=t.exp||0;}); }
+      if (inc){ const v=document.createElement("span"); v.className="vn i"; v.textContent="+"+short(inc); b.appendChild(v); }
+      if (exp){ const v=document.createElement("span"); v.className="vn e"; v.textContent="-"+short(exp); b.appendChild(v); }
+      b.onclick = ()=>openDay(d);
+      grid.appendChild(b);
+    }
+  }
+
+  // มุมมองทั้งปี: 12 ช่องเดือน แต่ละช่องมียอดรายรับ/รายจ่าย
+  function renderYear(){
+    const g = document.getElementById("yearGrid");
+    g.innerHTML = "";
+    for (let m=0; m<12; m++){
+      const t = monthTotals(cal.y,m);
+      const b = document.createElement("button");
+      b.className = "ycell"
+        + (cal.m===m ? " current" : "")
+        + (today.y===cal.y && today.m===m ? " today-mod" : "");
+      const nm = document.createElement("span"); nm.className="ym"; nm.textContent = MONTHS[m].slice(0,3)+".";
+      const ve = document.createElement("span");
+      ve.className = "yv " + (t.exp>0?"e":"z"); ve.textContent = t.exp>0 ? "-"+short(t.exp): "—";
+      const vi = document.createElement("span");
+      vi.className = "yv " + (t.inc>0?"i":"z"); vi.textContent = t.inc>0 ? "+"+short(t.inc) : "";
+      b.appendChild(nm); b.appendChild(ve); b.appendChild(vi);
+      b.onclick = ()=>{ cal.m=m; setMode("month"); };  // เจาะกลับเข้าเดือน
+      g.appendChild(b);
+    }
+    document.getElementById("yearHint").textContent = "แตะเดือนเพื่อเจาะเข้าไปดูรายวัน · ‹ › สลับปี";
+  }
+
+  function toggle(){
+    shown=!shown;
+    document.getElementById("calWrap").classList.toggle("show", shown);
+    document.getElementById("chev").classList.toggle("up", shown);
+  }
+  function cm(d){
+    if (mode==="year"){ cal.y += d; }
+    else { cal.y=(cal.m+d>11?cal.y+1:cal.y); cal.m=(cal.m+d+12)%12; }
+    render();
+  }
+
+  // ปุ่มแถวบนเปลี่ยนเดือน → เปลี่ยนทั้งหน้า+ปฏิทิน
+  document.querySelector(".nav-row .nav-btn:nth-child(1)").onclick=()=>{ cur={y:cur.m===0?cur.y-1:cur.y,m:(cur.m+11)%12}; cal={...cur}; render(); };
+  document.querySelector(".nav-row .nav-btn:nth-child(3)").onclick=()=>{ cur={y:cur.m===11?cur.y+1:cur.y,m:(cur.m+1)%12}; cal={...cur}; render(); };
+  document.getElementById("monthToggle").onclick = toggle;
+
+  // เปิดวัน
+  function openDay(d){
+    document.getElementById("txns").classList.add("show");
+    const day = (cal.m===8&&cal.y===2026)? (SEPT[d]||[]) : [];
+    document.getElementById("dayDate").textContent = `${d} ${MONTHS[cal.m]} ${cal.y+BE}`;
+    const inc = day.reduce((a,t)=>a+(t.inc||0),0);
+    const exp = day.reduce((a,t)=>a+(t.exp||0),0);
+    document.getElementById("dInc").textContent = baht(inc);
+    document.getElementById("dExp").textContent = baht(exp);
+    document.getElementById("dBal").textContent = (inc-exp>=0?"+":"-")+baht(Math.abs(inc-exp));
+    document.getElementById("dayList").innerHTML = day.map(t=>{
+      const e=(t.exp||0)>0, amt=e?t.exp:t.inc;
+      return `<div class="tx-item"><div class="dot ${e?"e":"i"}">${BT[t.cat]||"•"}</div>
+        <div class="mid"><div class="cat">${t.cat}</div><div class="note">${t.note}</div></div>
+        <div class="amt ${e?"e":"i"}">${e?"-":"+"}${baht(amt)}</div></div>`;
+    }).join("") || `<div class="card" style="box-shadow:none;border:1px dashed var(--border);text-align:center;color:var(--muted);font-size:13px">วันนี้ยังไม่มีรายการ<br/><span style="font-size:11px">จริงๆ จะมีปุ่ม + เพิ่มรายการ</span></div>`;
+  }
+  function closeDay(){ document.getElementById("txns").classList.remove("show"); }
+
+  render();
+</script>
+</body>
+</html>

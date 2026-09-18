@@ -28,6 +28,31 @@ export function verifyLineSignature(
   return hash === signature;
 }
 
+/** แสดงสถานะ "กำลังพิมพ์..." (Loading Animation / Three dots) ในแชท LINE */
+export async function showLineLoadingAnimation(
+  chatId: string,
+  channelAccessToken: string,
+  loadingSeconds: number = 20
+): Promise<boolean> {
+  try {
+    const res = await fetch("https://api.line.me/v2/bot/chat/loading/start", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${channelAccessToken}`,
+      },
+      body: JSON.stringify({
+        chatId,
+        loadingSeconds: Math.min(Math.max(loadingSeconds, 5), 60),
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("LINE loading animation error:", err);
+    return false;
+  }
+}
+
 /** ดาวน์โหลดเนื้อหารูปภาพจาก LINE Content API */
 export async function downloadLineImage(
   messageId: string,
