@@ -166,15 +166,19 @@ category ต้องเลือกจากรายการข้างบ�
 2. EDIT (e.g. "แก้รายการล่าสุดเป็น 70"):
 {"action":"edit","target_hint":"<ref>","new_amount":<satang_or_null>,"new_category":"<cat_or_null>","new_note":"<note_or_null>"}
 
-3. QUERY (e.g. "เงินเหลือเท่าไหร่", "สรุปรายจ่าย"):
-{"action":"query","answer":"<concise_direct_thai_answer>"}
-สำหรับคำถามเรื่องสรุป: ให้ตอบเป็นรายการ แต่ละรายการขึ้นบรรทัดใหม่ ใช้ emoji หมวดสวยๆ เช่น:
+3. QUERY (e.g. "เงินเหลือเท่าไหร่", "สรุปรายจ่าย", "ขอตารางการใช้จ่าย"):
+{"action":"query","answer":"<answer>"}
+ห้ามใช้ markdown table (|---|) ใน answer เด็ดขาด! LINE แสดงไม่ได้!
+ให้ใช้รูปแบบนี้แทน:
 📊 สรุปรายจ่ายเดือนนี้:
+
 🍜 อาหาร: 2,500 ฿
 🚗 เดินทาง: 800 ฿
-💡 ค่าไฟ: 1,200 ฿
+💡 บิล: 1,200 ฿
 ━━━━━━━━━━━━
 💰 รวม: 4,500 ฿
+
+ถ้ามีหลายรายการ ให้แสดงทีละบรรทัดใช้ emoji นำหน้า ห้ามใช้ | หรือ --- เด็ดขาด!
 `;
 
   for (const model of CHAT_MODELS) {
@@ -211,6 +215,8 @@ category ต้องเลือกจากรายการข้างบ�
         continue;
       }
 
+      // ลบ <think>...</think> blocks (บางโมเดลมี reasoning tags)
+      rawText = rawText.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
       rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
       // หา JSON ในข้อความ
@@ -226,9 +232,8 @@ category ต้องเลือกจากรายการข้างบ�
         return parsed;
       } catch {
         console.warn(`[LINE AI] ${model} JSON parse fail:`, rawText.slice(0, 100));
-        // ถ้า parse JSON ไม่ได้ แต่มีเนื้อหา → ตอบเป็น query fallback
         if (rawText.length > 5) {
-          return { action: "query" as const, answer: rawText.slice(0, 300) };
+          return { action: "query" as const, answer: rawText.slice(0, 500) };
         }
         continue;
       }
@@ -496,5 +501,21 @@ ${recentContext || "ไม่มีรายการ"}
   // ----------------------------------------------------
   // ACTION 3: ตอบคำถาม / ปรึกษา (QUERY)
   // ----------------------------------------------------
-  return intent.answer || "ขออภัยครับ ไม่สามารถตอบกลับได้ในขณะนี้";
+  let answer = intent.answer || "ขออภัยครับ ไม่สามารถตอบกลับได้ในขณะนี้";
+
+  // Safety: ถ้า answer เป็น JSON ดิบ → ดึงเอาแค่ค่า answer ออกมา
+  if (answer.startsWith("{") && answer.includes('"action"')) {
+    try {
+      const parsed = JSON.parse(answer);
+      answer = parsed.answer || answer;
+    } catch {
+      // ไม่เป็นไร ใช้ answer เดิม
+    }
+  }
+
+  // ลบ markdown table syntax ที่ LINE แสดงไม่ได้
+  answer = answer.replace(/\|[-:]+\|/g, "━━━━━━━━━━━━");
+  answer = answer.replace(/\|\s*/g, "").replace(/\s*\|/g, "");
+
+  return answer;
 }
