@@ -112,10 +112,12 @@ export async function deleteChatSession(sessionId: string): Promise<{ success?: 
 }
 
 const CHAT_MODELS = [
+  "nex-agi/nex-n2.5-pro:free",
+  "nex-agi/nex-n2.5-mini:free",
+  "inclusionai/ling-3.0-flash-vl:free",
   "google/gemma-4-26b-a4b-it:free",
   "qwen/qwen3.8-27b:free",
-  "inclusionai/ling-3.0-flash-fin:free",
-  "inclusionai/ling-3.0-flash-vl:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 /** ส่งคำถามให้ JodTang AI Advisor — แยกข้อมูลตาม user.id 100% ผ่าน RLS */

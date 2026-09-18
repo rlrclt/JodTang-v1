@@ -9,9 +9,12 @@ function getAdmin() {
 }
 
 const CHAT_MODELS = [
+  "nex-agi/nex-n2.5-pro:free",
+  "nex-agi/nex-n2.5-mini:free",
+  "inclusionai/ling-3.0-flash-vl:free",
   "google/gemma-4-26b-a4b-it:free",
   "qwen/qwen3.8-27b:free",
-  "inclusionai/ling-3.0-flash-fin:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 // หมวดหมู่จริงในระบบ — ต้องตรงชื่อใน DB เป๊ะ
@@ -195,10 +198,19 @@ category ต้องเลือกจากรายการข้างบ�
         }),
       });
 
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.warn(`[LINE AI] ${model} failed: ${res.status}`);
+        continue;
+      }
 
       const json = await res.json();
       let rawText = json.choices?.[0]?.message?.content || "";
+
+      if (!rawText) {
+        console.warn(`[LINE AI] ${model} returned empty content`);
+        continue;
+      }
+
       rawText = rawText.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
 
       // หา JSON ในข้อความ
@@ -208,14 +220,25 @@ category ต้องเลือกจากรายการข้างบ�
         rawText = rawText.slice(jsonStart, jsonEnd + 1);
       }
 
-      const parsed = JSON.parse(rawText);
-      return parsed;
-    } catch {
+      try {
+        const parsed = JSON.parse(rawText);
+        console.log(`[LINE AI] ${model} OK:`, JSON.stringify(parsed).slice(0, 100));
+        return parsed;
+      } catch {
+        console.warn(`[LINE AI] ${model} JSON parse fail:`, rawText.slice(0, 100));
+        // ถ้า parse JSON ไม่ได้ แต่มีเนื้อหา → ตอบเป็น query fallback
+        if (rawText.length > 5) {
+          return { action: "query" as const, answer: rawText.slice(0, 300) };
+        }
+        continue;
+      }
+    } catch (err: any) {
+      console.error(`[LINE AI] ${model} error:`, err.message);
       continue;
     }
   }
 
-  return { action: "query", answer: "ขออภัยครับ ไม่สามารถประมวลผลคำสั่งได้ในขณะนี้" };
+  return { action: "query", answer: "ขออภัยครับ ระบบ AI ไม่ว่างชั่วคราว กรุณาลองใหม่อีกครั้งใน 10 วินาทีครับ 🙏" };
 }
 
 /**
